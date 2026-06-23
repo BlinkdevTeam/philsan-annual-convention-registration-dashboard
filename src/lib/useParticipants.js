@@ -13,7 +13,7 @@ export function useParticipants(statusFilter) {
         let query = supabase
             .from('participants')
             .select('*')
-            .order('reg_request', { ascending: false });
+            .order('created_at', { ascending: false });
 
         if (statusFilter && statusFilter !== 'all') {
             query = query.eq('reg_status', statusFilter);
@@ -34,38 +34,10 @@ export function useParticipants(statusFilter) {
         fetchParticipants();
     }, [fetchParticipants]);
 
-    async function approveParticipant(id) {
-        const { error } = await supabase
-            .from('participants')
-            .update({ reg_status: 'approved', rejection_reason: null })
-            .eq('id', id);
-
-        if (!error) {
-            await fetchParticipants();
-        }
-
-        return { error };
-    }
-
-    async function rejectParticipant(id, reason) {
-        const { error } = await supabase
-            .from('participants')
-            .update({ reg_status: 'canceled', rejection_reason: reason })
-            .eq('id', id);
-
-        if (!error) {
-            await fetchParticipants();
-        }
-
-        return { error };
-    }
-
     return {
         participants,
         loading,
         error,
         refetch: fetchParticipants,
-        approveParticipant,
-        rejectParticipant,
     };
 }

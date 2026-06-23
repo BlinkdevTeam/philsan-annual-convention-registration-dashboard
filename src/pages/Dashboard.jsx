@@ -5,14 +5,16 @@ import { useParticipants } from '../lib/useParticipants';
 const STATUS_TABS = [
     { value: 'pending',   label: 'Pending' },
     { value: 'approved',  label: 'Approved' },
-    { value: 'canceled',  label: 'Rejected' },
+    { value: 'rejected',  label: 'Rejected' },
+    { value: 'canceled',  label: 'Canceled' },
     { value: 'all',       label: 'All' },
 ];
 
 const STATUS_BADGE = {
     pending:  'bg-[#FAEEDA] text-[#854F0B]',
     approved: 'bg-[#EAF3DE] text-[#3B6D11]',
-    canceled: 'bg-[#FCEBEB] text-[#A32D2D]',
+    rejected: 'bg-[#FCEBEB] text-[#A32D2D]',
+    canceled: 'bg-[#F0E6FF] text-[#6B21A8]',
 };
 
 export default function Dashboard() {
@@ -34,15 +36,13 @@ export default function Dashboard() {
 
     return (
         <div className="px-8 py-8">
-            {/* Header */}
             <div className="mb-6">
                 <h1 className="text-[22px] font-bold text-[#16572A]">Participants</h1>
                 <p className="text-[13.5px] text-[#5f5e5a] mt-1">
-                    Click a row to view details, proof of payment, and approve or reject.
+                    Click a row to view details, proof of payment, and take action.
                 </p>
             </div>
 
-            {/* Filters */}
             <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
                 <div className="flex gap-1 bg-white border border-[#e5e3da] rounded-md p-1">
                     {STATUS_TABS.map((tab) => (
