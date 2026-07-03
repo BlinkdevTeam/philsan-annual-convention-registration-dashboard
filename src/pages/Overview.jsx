@@ -11,10 +11,10 @@ const STATUS_COLORS = {
 
 function StatCard({ label, value, sub }) {
     return (
-        <div className="bg-white border border-[#e5e3da] rounded-lg px-5 py-4">
+        <div className="bg-white border border-[#e5e3da] rounded-lg px-4 py-4">
             <p className="text-[12px] text-[#5f5e5a] mb-1">{label}</p>
-            <p className="text-[32px] font-bold text-[#16572A] leading-none">{value}</p>
-            {sub && <p className="text-[12px] text-[#888780] mt-1">{sub}</p>}
+            <p className="text-[28px] font-bold text-[#16572A] leading-none">{value}</p>
+            {sub && <p className="text-[11px] text-[#888780] mt-1">{sub}</p>}
         </div>
     );
 }
@@ -23,19 +23,19 @@ function Bar({ label, value, max, color }) {
     const pct = max > 0 ? Math.round((value / max) * 100) : 0;
     return (
         <div className="flex items-center gap-3 text-[13px]">
-            <span className="w-[150px] shrink-0 text-[#344054] truncate">{label}</span>
+            <span className="w-[130px] shrink-0 text-[#344054] truncate text-[12px]">{label}</span>
             <div className="flex-1 bg-[#f1efe8] rounded-full h-[8px] overflow-hidden">
                 <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color || '#16572A' }} />
             </div>
-            <span className="w-[28px] text-right text-[#5f5e5a] font-medium">{value}</span>
+            <span className="w-[24px] text-right text-[#5f5e5a] font-medium text-[12px]">{value}</span>
         </div>
     );
 }
 
 function BreakdownCard({ title, rows, max, color }) {
     return (
-        <div className="bg-white border border-[#e5e3da] rounded-lg p-5">
-            <h2 className="text-[14px] font-bold text-[#344054] mb-4">{title}</h2>
+        <div className="bg-white border border-[#e5e3da] rounded-lg p-4">
+            <h2 className="text-[13.5px] font-bold text-[#344054] mb-3">{title}</h2>
             <div className="flex flex-col gap-3">
                 {rows.length === 0
                     ? <p className="text-[13px] text-[#5f5e5a]">No data yet.</p>
@@ -76,73 +76,48 @@ export default function Overview() {
             const sponsored  = participants.filter(p => p.sponsored === 'yes').length;
             const selfPaying = participants.filter(p => p.sponsored !== 'yes').length;
 
-            // Membership breakdown
             const membershipMap = {};
             for (const p of participants) {
                 const key = p.membership || 'Unknown';
                 membershipMap[key] = (membershipMap[key] || 0) + 1;
             }
-            const membershipLabels = {
-                regular:    'Regular member',
-                associate:  'Associate member',
-                Donor:      'Donor',
-                non_member: 'Non-member',
-                Unknown:    'Unknown',
-            };
-            const membership = Object.entries(membershipMap)
-                .map(([key, count]) => ({ label: membershipLabels[key] || key, count }))
-                .sort((a, b) => b.count - a.count);
+            const membershipLabels = { regular: 'Regular member', associate: 'Associate member', Donor: 'Donor', non_member: 'Non-member', Unknown: 'Unknown' };
+            const membership = Object.entries(membershipMap).map(([key, count]) => ({ label: membershipLabels[key] || key, count })).sort((a, b) => b.count - a.count);
 
-            // Souvenir breakdown
             const souvenirMap = {};
             for (const p of participants) {
                 const key = p.souvenir || 'no';
                 souvenirMap[key] = (souvenirMap[key] || 0) + 1;
             }
             const souvenirLabels = { no: 'No souvenir', digital: 'Digital copy (USB)' };
-            const souvenir = Object.entries(souvenirMap)
-                .map(([key, count]) => ({ label: souvenirLabels[key] || key, count }))
-                .sort((a, b) => b.count - a.count);
+            const souvenir = Object.entries(souvenirMap).map(([key, count]) => ({ label: souvenirLabels[key] || key, count })).sort((a, b) => b.count - a.count);
 
-            // Certificate breakdown
             const certMap = {};
             for (const p of participants) {
                 const key = p.certificate_needed || 'no';
                 certMap[key] = (certMap[key] || 0) + 1;
             }
             const certLabels = { yes: 'Needs certificate', no: 'No certificate needed' };
-            const certificate = Object.entries(certMap)
-                .map(([key, count]) => ({ label: certLabels[key] || key, count }))
-                .sort((a, b) => b.count - a.count);
+            const certificate = Object.entries(certMap).map(([key, count]) => ({ label: certLabels[key] || key, count })).sort((a, b) => b.count - a.count);
 
-            // Top sponsors by participant count
             const sponsorMap = {};
             for (const p of participants) {
                 if (p.sponsored === 'yes' && p.sponsor) {
                     sponsorMap[p.sponsor] = (sponsorMap[p.sponsor] || 0) + 1;
                 }
             }
-            const topSponsors = Object.entries(sponsorMap)
-                .map(([name, count]) => ({ name, count }))
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 8);
+            const topSponsors = Object.entries(sponsorMap).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 8);
 
-            setData({
-                total, approved, pending, rejected, canceled,
-                sponsored, selfPaying,
-                totalSponsors: sponsors.length,
-                membership, souvenir, certificate, topSponsors,
-            });
+            setData({ total, approved, pending, rejected, canceled, sponsored, selfPaying, totalSponsors: sponsors.length, membership, souvenir, certificate, topSponsors });
         } catch (err) {
             setError('Failed to load stats.');
-            console.error(err);
         } finally {
             setLoading(false);
         }
     }
 
-    if (loading) return <div className="px-8 py-8 text-[13.5px] text-[#5f5e5a]">Loading…</div>;
-    if (error)   return <div className="px-8 py-8 text-[13.5px] text-[#A32D2D]">{error}</div>;
+    if (loading) return <div className="px-4 py-6 text-[13.5px] text-[#5f5e5a]">Loading…</div>;
+    if (error)   return <div className="px-4 py-6 text-[13.5px] text-[#A32D2D]">{error}</div>;
 
     const maxMembership = Math.max(...data.membership.map(m => m.count), 1);
     const maxSouvenir   = Math.max(...data.souvenir.map(s => s.count), 1);
@@ -150,23 +125,21 @@ export default function Overview() {
     const maxSponsor    = Math.max(...data.topSponsors.map(s => s.count), 1);
 
     return (
-        <div className="px-8 py-8">
-            <div className="mb-6">
-                <h1 className="text-[22px] font-bold text-[#16572A]">Overview</h1>
-                <p className="text-[13.5px] text-[#5f5e5a] mt-1">Registration statistics at a glance.</p>
+        <div className="px-4 lg:px-8 py-6 lg:py-8">
+            <div className="mb-5">
+                <h1 className="text-[20px] lg:text-[22px] font-bold text-[#16572A]">Overview</h1>
+                <p className="text-[13px] text-[#5f5e5a] mt-1">Registration statistics at a glance.</p>
             </div>
 
-            {/* Summary cards */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            {/* Summary cards — 2 cols on mobile, 3 on desktop */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
                 <StatCard label="Total registrations" value={data.total} />
-                <StatCard label="Total sponsors" value={data.totalSponsors}
-                    sub={`${data.sponsored} sponsored participant${data.sponsored !== 1 ? 's' : ''}`} />
-                <StatCard label="Self-paying" value={data.selfPaying}
-                    sub={`${data.total > 0 ? Math.round((data.selfPaying / data.total) * 100) : 0}% of total`} />
+                <StatCard label="Total sponsors" value={data.totalSponsors} sub={`${data.sponsored} sponsored participants`} />
+                <StatCard label="Self-paying" value={data.selfPaying} sub={`${data.total > 0 ? Math.round((data.selfPaying / data.total) * 100) : 0}% of total`} />
             </div>
 
-            {/* Status breakdown */}
-            <div className="grid grid-cols-4 gap-4 mb-8">
+            {/* Status cards — 2 cols on mobile, 4 on desktop */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                 {[
                     { label: 'Approved', value: data.approved, key: 'approved' },
                     { label: 'Pending',  value: data.pending,  key: 'pending' },
@@ -174,62 +147,38 @@ export default function Overview() {
                     { label: 'Canceled', value: data.canceled, key: 'canceled' },
                 ].map(({ label, value, key }) => (
                     <button key={key} onClick={() => navigate('/participants')}
-                        className={`rounded-lg px-5 py-4 text-left border border-[#e5e3da] hover:opacity-80 transition-opacity ${STATUS_COLORS[key]}`}>
-                        <p className="text-[12px] mb-1 opacity-80">{label}</p>
-                        <p className="text-[28px] font-bold leading-none">{value}</p>
-                        <p className="text-[11.5px] mt-1 opacity-70">
-                            {data.total > 0 ? Math.round((value / data.total) * 100) : 0}% of total
-                        </p>
+                        className={`rounded-lg px-4 py-3 text-left border border-[#e5e3da] hover:opacity-80 transition-opacity ${STATUS_COLORS[key]}`}>
+                        <p className="text-[11px] mb-1 opacity-80">{label}</p>
+                        <p className="text-[24px] font-bold leading-none">{value}</p>
+                        <p className="text-[11px] mt-1 opacity-70">{data.total > 0 ? Math.round((value / data.total) * 100) : 0}%</p>
                     </button>
                 ))}
             </div>
 
-            {/* Row 1: Sponsored vs self-paying + Membership */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
-                <div className="bg-white border border-[#e5e3da] rounded-lg p-5">
-                    <h2 className="text-[14px] font-bold text-[#344054] mb-4">Sponsored vs self-paying</h2>
+            {/* Breakdowns — single col on mobile, 2 cols on desktop */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <div className="bg-white border border-[#e5e3da] rounded-lg p-4">
+                    <h2 className="text-[13.5px] font-bold text-[#344054] mb-3">Sponsored vs self-paying</h2>
                     <div className="flex flex-col gap-3">
                         <Bar label="Self-paying" value={data.selfPaying} max={data.total} color="#16572A" />
                         <Bar label="Sponsored"   value={data.sponsored}  max={data.total} color="#EDB221" />
                     </div>
-                    <div className="flex gap-4 mt-5 text-[12px] text-[#5f5e5a]">
-                        <span className="flex items-center gap-1.5">
-                            <span className="w-3 h-3 rounded-sm inline-block bg-[#16572A]"></span> Self-paying ({data.selfPaying})
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                            <span className="w-3 h-3 rounded-sm inline-block bg-[#EDB221]"></span> Sponsored ({data.sponsored})
-                        </span>
+                    <div className="flex gap-4 mt-4 text-[11px] text-[#5f5e5a]">
+                        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm inline-block bg-[#16572A]"></span> Self-paying ({data.selfPaying})</span>
+                        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm inline-block bg-[#EDB221]"></span> Sponsored ({data.sponsored})</span>
                     </div>
                 </div>
-
-                <BreakdownCard
-                    title="Membership type"
-                    rows={data.membership}
-                    max={maxMembership}
-                    color="#16572A"
-                />
+                <BreakdownCard title="Membership type" rows={data.membership} max={maxMembership} color="#16572A" />
             </div>
 
-            {/* Row 2: Souvenir + Certificate */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
-                <BreakdownCard
-                    title="Souvenir program"
-                    rows={data.souvenir}
-                    max={maxSouvenir}
-                    color="#339544"
-                />
-                <BreakdownCard
-                    title="Certificate of attendance"
-                    rows={data.certificate}
-                    max={maxCert}
-                    color="#339544"
-                />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <BreakdownCard title="Souvenir program" rows={data.souvenir} max={maxSouvenir} color="#339544" />
+                <BreakdownCard title="Certificate of attendance" rows={data.certificate} max={maxCert} color="#339544" />
             </div>
 
-            {/* Top sponsors */}
             {data.topSponsors.length > 0 && (
-                <div className="bg-white border border-[#e5e3da] rounded-lg p-5">
-                    <h2 className="text-[14px] font-bold text-[#344054] mb-4">Top sponsors by participant count</h2>
+                <div className="bg-white border border-[#e5e3da] rounded-lg p-4">
+                    <h2 className="text-[13.5px] font-bold text-[#344054] mb-3">Top sponsors by participant count</h2>
                     <div className="flex flex-col gap-3">
                         {data.topSponsors.map(({ name, count }) => (
                             <Bar key={name} label={name} value={count} max={maxSponsor} color="#EDB221" />
