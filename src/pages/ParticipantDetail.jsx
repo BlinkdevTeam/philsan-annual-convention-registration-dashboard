@@ -154,7 +154,7 @@ export default function ParticipantDetail() {
             </div>
 
             {/* Details + Proof */}
-            <div className="grid grid-cols-[1fr_1fr] gap-6 mb-6">
+            <div className="flex flex-col md:grid grid-cols-[1fr_1fr] gap-6 mb-6">
                 <div className="bg-white border border-[#e5e3da] rounded-lg p-5">
                     <h2 className="text-[13.5px] font-bold text-[#344054] mb-4">Registration details</h2>
                     <dl className="flex flex-col gap-3 text-[13px]">
