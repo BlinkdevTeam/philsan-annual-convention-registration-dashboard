@@ -78,6 +78,7 @@ export default function Dashboard() {
                                     <th className="px-4 py-3 font-medium">Email</th>
                                     <th className="px-4 py-3 font-medium">Company</th>
                                     <th className="px-4 py-3 font-medium">Age</th>
+                                    <th className="px-4 py-3 font-medium">Student</th>
                                     <th className="px-4 py-3 font-medium">Sponsored</th>
                                     <th className="px-4 py-3 font-medium">Status</th>
                                 </tr>
@@ -90,6 +91,15 @@ export default function Dashboard() {
                                         <td className="px-4 py-3 text-[#5f5e5a]">{p.email}</td>
                                         <td className="px-4 py-3 text-[#5f5e5a]">{p.company}</td>
                                         <td className="px-4 py-3 text-[#5f5e5a]">{p.age ?? '—'}</td>
+                                        <td className="px-4 py-3">
+                                            {p.is_student ? (
+                                                <span className="inline-block px-2.5 py-1 rounded-full text-[12px] font-medium bg-[#EAF3DE] text-[#3B6D11]">
+                                                    Student
+                                                </span>
+                                            ) : (
+                                                <span className="text-[#5f5e5a]">—</span>
+                                            )}
+                                        </td>
                                         <td className="px-4 py-3 text-[#5f5e5a]">{p.sponsored === 'yes' ? p.sponsor || 'Yes' : 'No'}</td>
                                         <td className="px-4 py-3">
                                             <span className={`inline-block px-2.5 py-1 rounded-full text-[12px] font-medium ${STATUS_BADGE[p.reg_status] ?? 'bg-[#f1efe8] text-[#5f5e5a]'}`}>
@@ -116,6 +126,11 @@ export default function Dashboard() {
                                 <p className="text-[12.5px] text-[#5f5e5a]">{p.email}</p>
                                 {p.company && <p className="text-[12.5px] text-[#5f5e5a]">{p.company}</p>}
                                 {p.age && <p className="text-[12.5px] text-[#5f5e5a]">Age: {p.age}</p>}
+                                {p.is_student && (
+                                    <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#EAF3DE] text-[#3B6D11]">
+                                        Student
+                                    </span>
+                                )}
                                 {p.sponsored === 'yes' && (
                                     <p className="text-[11.5px] text-[#854F0B] mt-1">Sponsored by {p.sponsor || 'sponsor'}</p>
                                 )}

@@ -61,7 +61,7 @@ export default function Overview() {
         setError('');
         try {
             const [{ data: participants, error: pErr }, { data: sponsors, error: sErr }] = await Promise.all([
-                supabase.from('participants').select('reg_status, sponsored, sponsor, membership, souvenir, certificate_needed, age'),
+                supabase.from('participants').select('reg_status, sponsored, sponsor, membership, souvenir, certificate_needed, age, is_student'),
                 supabase.from('sponsors').select('id'),
             ]);
 
@@ -75,6 +75,20 @@ export default function Overview() {
             const canceled   = participants.filter(p => p.reg_status === 'canceled').length;
             const sponsored  = participants.filter(p => p.sponsored === 'yes').length;
             const selfPaying = participants.filter(p => p.sponsored !== 'yes').length;
+
+            // Students
+            const students          = participants.filter(p => p.is_student);
+            const totalStudents     = students.length;
+            const studentApproved   = students.filter(p => p.reg_status === 'approved').length;
+            const studentPending    = students.filter(p => p.reg_status === 'pending').length;
+            const studentRejected   = students.filter(p => p.reg_status === 'rejected').length;
+            const studentCanceled   = students.filter(p => p.reg_status === 'canceled').length;
+            const studentStatusRows = [
+                { label: 'Pending',  count: studentPending },
+                { label: 'Approved', count: studentApproved },
+                { label: 'Rejected', count: studentRejected },
+                { label: 'Canceled', count: studentCanceled },
+            ].filter(r => r.count > 0);
 
             // Membership
             const membershipMap = {};
@@ -133,7 +147,11 @@ export default function Overview() {
             }
             const topSponsors = Object.entries(sponsorMap).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 8);
 
-            setData({ total, approved, pending, rejected, canceled, sponsored, selfPaying, totalSponsors: sponsors.length, membership, souvenir, certificate, ageGroups, topSponsors });
+            setData({
+                total, approved, pending, rejected, canceled, sponsored, selfPaying,
+                totalSponsors: sponsors.length, membership, souvenir, certificate, ageGroups, topSponsors,
+                totalStudents, studentApproved, studentPending, studentRejected, studentCanceled, studentStatusRows,
+            });
         } catch (err) {
             setError('Failed to load stats.');
         } finally {
@@ -144,11 +162,12 @@ export default function Overview() {
     if (loading) return <div className="px-4 py-6 text-[13.5px] text-[#5f5e5a]">Loading…</div>;
     if (error)   return <div className="px-4 py-6 text-[13.5px] text-[#A32D2D]">{error}</div>;
 
-    const maxMembership = Math.max(...data.membership.map(m => m.count), 1);
-    const maxSouvenir   = Math.max(...data.souvenir.map(s => s.count), 1);
-    const maxCert       = Math.max(...data.certificate.map(c => c.count), 1);
-    const maxAge        = Math.max(...data.ageGroups.map(a => a.count), 1);
-    const maxSponsor    = Math.max(...data.topSponsors.map(s => s.count), 1);
+    const maxMembership   = Math.max(...data.membership.map(m => m.count), 1);
+    const maxSouvenir     = Math.max(...data.souvenir.map(s => s.count), 1);
+    const maxCert         = Math.max(...data.certificate.map(c => c.count), 1);
+    const maxAge          = Math.max(...data.ageGroups.map(a => a.count), 1);
+    const maxSponsor      = Math.max(...data.topSponsors.map(s => s.count), 1);
+    const maxStudentStatus = Math.max(...data.studentStatusRows.map(r => r.count), 1);
 
     return (
         <div className="px-4 lg:px-8 py-6 lg:py-8">
@@ -179,6 +198,26 @@ export default function Overview() {
                         <p className="text-[11px] mt-1 opacity-70">{data.total > 0 ? Math.round((value / data.total) * 100) : 0}%</p>
                     </button>
                 ))}
+            </div>
+
+            {/* Students */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <div className="bg-white border border-[#e5e3da] rounded-lg p-4">
+                    <h2 className="text-[13.5px] font-bold text-[#344054] mb-3">Students</h2>
+                    <div className="flex items-end gap-2 mb-3">
+                        <p className="text-[28px] font-bold text-[#16572A] leading-none">{data.totalStudents}</p>
+                        <p className="text-[11px] text-[#888780] mb-1">
+                            {data.total > 0 ? Math.round((data.totalStudents / data.total) * 100) : 0}% of total registrations
+                        </p>
+                    </div>
+                    <div className="flex flex-col gap-2 text-[11.5px] text-[#5f5e5a]">
+                        <span>Pending: <strong className="text-[#854F0B]">{data.studentPending}</strong></span>
+                        <span>Approved: <strong className="text-[#3B6D11]">{data.studentApproved}</strong></span>
+                        {data.studentRejected > 0 && <span>Rejected: <strong className="text-[#A32D2D]">{data.studentRejected}</strong></span>}
+                        {data.studentCanceled > 0 && <span>Canceled: <strong className="text-[#6B21A8]">{data.studentCanceled}</strong></span>}
+                    </div>
+                </div>
+                <BreakdownCard title="Student registration status" rows={data.studentStatusRows} max={maxStudentStatus} color="#0F4D91" />
             </div>
 
             {/* Sponsored vs self-paying + membership */}

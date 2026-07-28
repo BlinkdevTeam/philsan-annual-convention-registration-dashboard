@@ -27,6 +27,7 @@ export default function ParticipantDetail() {
 
     const [participant, setParticipant] = useState(null);
     const [proofUrl, setProofUrl] = useState(null);
+    const [studentIdUrl, setStudentIdUrl] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [actioning, setActioning] = useState(false);
@@ -56,6 +57,14 @@ export default function ParticipantDetail() {
                     .createSignedUrl(data.payment_proof, 3600);
                 if (signedErr) console.error('Signed URL error:', signedErr);
                 else if (signed?.signedUrl) setProofUrl(signed.signedUrl);
+            }
+
+            if (data.student_id_photo) {
+                const { data: signedStudent, error: signedStudentErr } = await supabase
+                    .storage.from('student_ids')
+                    .createSignedUrl(data.student_id_photo, 3600);
+                if (signedStudentErr) console.error('Student ID signed URL error:', signedStudentErr);
+                else if (signedStudent?.signedUrl) setStudentIdUrl(signedStudent.signedUrl);
             }
         } catch (err) {
             setError('Failed to load participant.');
@@ -163,6 +172,7 @@ export default function ParticipantDetail() {
                             { label: 'Email',       value: participant.email },
                             { label: 'Mobile',      value: participant.mobile ?? '—' },
                             { label: 'Company',     value: participant.company ?? '—' },
+                            { label: 'Student',     value: participant.is_student ? 'Yes' : 'No' },
                             { label: 'Sponsored',   value: participant.is_sponsored ? 'Yes' : 'No' },
                             { label: 'Sponsor',     value: participant.sponsor ?? '—' },
                             { label: 'Registered',  value: new Date(participant.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) },
@@ -210,6 +220,28 @@ export default function ParticipantDetail() {
                         </div>
                     )}
                 </div>
+
+                {participant.is_student && (
+                    <div className="bg-white border border-[#e5e3da] rounded-lg p-5">
+                        <h2 className="text-[13.5px] font-bold text-[#344054] mb-4">Student ID</h2>
+                        {studentIdUrl ? (
+                            <div className="flex flex-col gap-3">
+                                <div className="border border-[#e5e3da] rounded-md overflow-hidden bg-[#f7f6f1]">
+                                    <img src={studentIdUrl} alt="Student ID" className="w-full object-contain max-h-[280px]"
+                                        onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
+                                    <iframe src={studentIdUrl} title="Student ID" className="w-full h-[280px]" style={{ display: 'none' }} />
+                                </div>
+                                <a href={studentIdUrl} target="_blank" rel="noopener noreferrer" className="text-[12.5px] text-[#16572A] hover:underline text-center">
+                                    Open full file ↗
+                                </a>
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center h-[200px] bg-[#f7f6f1] rounded-md">
+                                <p className="text-[13px] text-[#5f5e5a]">No file uploaded.</p>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Actions */}
