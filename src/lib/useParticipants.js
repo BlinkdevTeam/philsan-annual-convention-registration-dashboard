@@ -13,7 +13,7 @@ export function useParticipants(statusFilter) {
         let query = supabase
             .from('participants')
             .select('*')
-            .order('created_at', { ascending: false });
+            .order('reg_request', { ascending: false });
 
         if (statusFilter && statusFilter !== 'all') {
             query = query.eq('reg_status', statusFilter);
@@ -34,10 +34,43 @@ export function useParticipants(statusFilter) {
         fetchParticipants();
     }, [fetchParticipants]);
 
+    async function approveParticipant(id) {
+        const { error } = await supabase
+            .from('participants')
+            .update({ reg_status: 'approved', rejection_reason: null })
+            .eq('id', id);
+
+        if (!error) await fetchParticipants();
+        return { error };
+    }
+
+    async function rejectParticipant(id, reason) {
+        const { error } = await supabase
+            .from('participants')
+            .update({ reg_status: 'canceled', rejection_reason: reason })
+            .eq('id', id);
+
+        if (!error) await fetchParticipants();
+        return { error };
+    }
+
+    async function transferParticipant(id, sponsorName) {
+        const { error } = await supabase
+            .from('participants')
+            .update({ sponsor: sponsorName, sponsored: 'yes' })
+            .eq('id', id);
+
+        if (!error) await fetchParticipants();
+        return { error };
+    }
+
     return {
         participants,
         loading,
         error,
         refetch: fetchParticipants,
+        approveParticipant,
+        rejectParticipant,
+        transferParticipant,
     };
 }
