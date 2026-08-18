@@ -18,6 +18,7 @@ export default function Sponsors() {
     const [saving, setSaving] = useState(false);
     const [formError, setFormError] = useState('');
     const [deletingId, setDeletingId] = useState(null);
+    const [visiblePasswords, setVisiblePasswords] = useState({});
     const navigate = useNavigate();
 
     useEffect(() => { fetchData(); }, []);
@@ -26,10 +27,15 @@ export default function Sponsors() {
         setLoading(true);
         setError('');
         try {
-            const { data: sponsorData, error: sponsorErr } = await supabase.from('sponsors').select('id, name, slug, created_at').order('name', { ascending: true });
+            const { data: sponsorData, error: sponsorErr } = await supabase
+                .from('sponsors')
+                .select('id, name, slug, password, created_at')
+                .order('name', { ascending: true });
             if (sponsorErr) throw sponsorErr;
 
-            const { data: participantData, error: partErr } = await supabase.from('participants').select('sponsor, reg_status');
+            const { data: participantData, error: partErr } = await supabase
+                .from('participants')
+                .select('sponsor, reg_status');
             if (partErr) throw partErr;
 
             const countMap = {};
@@ -53,8 +59,8 @@ export default function Sponsors() {
     }
 
     function handleNameChange(name) { setForm(f => ({ ...f, name, slug: slugify(name) })); }
-
     function openModal() { setForm(EMPTY_FORM); setFormError(''); setShowModal(true); }
+    function togglePassword(id) { setVisiblePasswords(v => ({ ...v, [id]: !v[id] })); }
 
     async function handleAdd() {
         setFormError('');
@@ -104,15 +110,16 @@ export default function Sponsors() {
                 </div>
             )}
 
-            {/* Desktop table */}
             {!loading && !error && sponsors.length > 0 && (
                 <>
+                    {/* Desktop table */}
                     <div className="hidden lg:block bg-white border border-[#e5e3da] rounded-lg overflow-hidden">
                         <table className="w-full text-[13.5px]">
                             <thead>
                                 <tr className="bg-[#f7f6f1] text-left text-[#344054]">
                                     <th className="px-5 py-3 font-medium">Sponsor</th>
                                     <th className="px-5 py-3 font-medium">Portal URL</th>
+                                    <th className="px-5 py-3 font-medium">Password</th>
                                     <th className="px-5 py-3 font-medium text-center">Total</th>
                                     <th className="px-5 py-3 font-medium text-center">Approved</th>
                                     <th className="px-5 py-3 font-medium text-center">Pending</th>
@@ -123,6 +130,7 @@ export default function Sponsors() {
                             <tbody>
                                 {sponsors.map((s) => {
                                     const c = counts[s.name.trim()] ?? { total: 0, approved: 0, pending: 0, canceled: 0 };
+                                    const shown = visiblePasswords[s.id];
                                     return (
                                         <tr key={s.id} className="border-t border-[#e5e3da] hover:bg-[#fafaf7]">
                                             <td className="px-5 py-3">
@@ -130,6 +138,15 @@ export default function Sponsors() {
                                             </td>
                                             <td className="px-5 py-3 text-[#5f5e5a]">
                                                 <span className="font-mono text-[12px] bg-[#f1efe8] px-2 py-0.5 rounded">/sponsor/{s.slug}</span>
+                                            </td>
+                                            <td className="px-5 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-mono text-[12px] text-[#344054]">{s.password}</span>
+                                                    <button onClick={() => navigator.clipboard.writeText(s.password)}
+                                                        className="text-[11px] text-[#16572A] hover:underline shrink-0">
+                                                        Copy
+                                                    </button>
+                                                </div>
                                             </td>
                                             <td className="px-5 py-3 text-center font-medium">{c.total}</td>
                                             <td className="px-5 py-3 text-center"><span className="inline-block px-2 py-0.5 rounded-full text-[12px] bg-[#EAF3DE] text-[#3B6D11] font-medium">{c.approved}</span></td>
@@ -151,6 +168,7 @@ export default function Sponsors() {
                     <div className="lg:hidden flex flex-col gap-3">
                         {sponsors.map((s) => {
                             const c = counts[s.name.trim()] ?? { total: 0, approved: 0, pending: 0, canceled: 0 };
+                            const shown = visiblePasswords[s.id];
                             return (
                                 <div key={s.id} className="bg-white border border-[#e5e3da] rounded-lg p-4">
                                     <div className="flex items-start justify-between mb-2">
@@ -159,12 +177,19 @@ export default function Sponsors() {
                                             {deletingId === s.id ? '…' : 'Remove'}
                                         </button>
                                     </div>
-                                    <p className="font-mono text-[11.5px] text-[#5f5e5a] mb-3">/sponsor/{s.slug}</p>
+                                    <p className="font-mono text-[11.5px] text-[#5f5e5a] mb-2">/sponsor/{s.slug}</p>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <span className="font-mono text-[12px] text-[#344054]">{s.password}</span>
+                                        <button onClick={() => navigator.clipboard.writeText(s.password)}
+                                            className="text-[11px] text-[#16572A] hover:underline">
+                                            Copy
+                                        </button>
+                                    </div>
                                     <div className="grid grid-cols-4 gap-2 text-center">
                                         {[
-                                            { label: 'Total', value: c.total, cls: 'text-[#344054]' },
+                                            { label: 'Total',    value: c.total,    cls: 'text-[#344054]' },
                                             { label: 'Approved', value: c.approved, cls: 'text-[#3B6D11]' },
-                                            { label: 'Pending', value: c.pending, cls: 'text-[#854F0B]' },
+                                            { label: 'Pending',  value: c.pending,  cls: 'text-[#854F0B]' },
                                             { label: 'Rejected', value: c.canceled, cls: 'text-[#A32D2D]' },
                                         ].map(({ label, value, cls }) => (
                                             <div key={label}>
