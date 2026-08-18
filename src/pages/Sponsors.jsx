@@ -137,10 +137,18 @@ export default function Sponsors() {
                                                 <button onClick={() => navigate(`/sponsors/${s.slug}`)} className="font-medium text-[#16572A] hover:underline text-left">{s.name}</button>
                                             </td>
                                             <td className="px-5 py-3 text-[#5f5e5a]">
-                                                <span className="font-mono text-[12px] bg-[#f1efe8] px-2 py-0.5 rounded">/sponsor/{s.slug}</span>
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <span className="font-mono text-[12px] bg-[#f1efe8] px-2 py-0.5 rounded">
+                                                        https://philsan-annual-convention-registrat.vercel.app/sponsor/{s.slug}
+                                                    </span>
+                                                    <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/sponsor/${s.slug}`)}
+                                                        className="text-[11px] text-[#16572A] hover:underline shrink-0 bg-[#f1efe8] w-[100%]">
+                                                        Copy
+                                                    </button>
+                                                </div>
                                             </td>
                                             <td className="px-5 py-3">
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-[20px]">
                                                     <span className="font-mono text-[12px] text-[#344054]">{s.password}</span>
                                                     <button onClick={() => navigator.clipboard.writeText(s.password)}
                                                         className="text-[11px] text-[#16572A] hover:underline shrink-0">
