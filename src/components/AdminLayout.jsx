@@ -6,6 +6,7 @@ const NAV = [
     { to: '/',             label: 'Overview',      icon: '📊', end: true },
     { to: '/participants', label: 'Participants',   icon: '👥' },
     { to: '/sponsors',     label: 'Sponsors',       icon: '🏢' },
+    { to: '/attendance',   label: 'Attendance',     icon: '🎫' },
 ];
 
 export default function AdminLayout({ children }) {

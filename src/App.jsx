@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Sponsors from './pages/Sponsors';
 import SponsorDetail from './pages/SponsorDetail';
 import ParticipantDetail from './pages/ParticipantDetail';
+import Attendance from './pages/Attendance';
 import SponsorLogin from './pages/SponsorLogin';
 import SponsorStatus from './pages/SponsorStatus';
 
@@ -26,13 +27,14 @@ export default function App() {
     return (
         <BrowserRouter>
             <Routes>
-                <Route path="/"                     element={<AdminPages><Overview /></AdminPages>} />
-                <Route path="/participants"          element={<AdminPages><Dashboard /></AdminPages>} />
-                <Route path="/participants/:id"      element={<AdminPages><ParticipantDetail /></AdminPages>} />
-                <Route path="/sponsors"             element={<AdminPages><Sponsors /></AdminPages>} />
-                <Route path="/sponsors/:slug"       element={<AdminPages><SponsorDetail /></AdminPages>} />
-                <Route path="/sponsor/:slug"        element={<SponsorLogin />} />
-                <Route path="/sponsor/:slug/status" element={<SponsorStatus />} />
+                <Route path="/"                         element={<AdminPages><Overview /></AdminPages>} />
+                <Route path="/participants"             element={<AdminPages><Dashboard /></AdminPages>} />
+                <Route path="/participants/:id"         element={<AdminPages><ParticipantDetail /></AdminPages>} />
+                <Route path="/sponsors"                 element={<AdminPages><Sponsors /></AdminPages>} />
+                <Route path="/sponsors/:slug"           element={<AdminPages><SponsorDetail /></AdminPages>} />
+                <Route path="/attendance"               element={<AdminPages><Attendance /></AdminPages>} />
+                <Route path="/sponsor/:slug"            element={<SponsorLogin />} />
+                <Route path="/sponsor/:slug/status"     element={<SponsorStatus />} />
             </Routes>
         </BrowserRouter>
     );
