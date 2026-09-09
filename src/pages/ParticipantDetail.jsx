@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 
 const SUPABASE_URL = 'https://pskballrwzdbovtylgjs.supabase.co';
@@ -161,6 +161,15 @@ export default function ParticipantDetail() {
                     {status}
                 </span>
             </div>
+
+            <Link
+                to={`/participants/${id}/qr`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 mb-6 px-4 py-2 border border-[#16572A] text-[#16572A] hover:bg-[#EAF3DE] text-[13px] font-medium rounded-md"
+            >
+                🎫 View / Print QR Code
+            </Link>
 
             {/* Details + Proof */}
             <div className="flex flex-col md:grid grid-cols-[1fr_1fr] gap-6 mb-6">
