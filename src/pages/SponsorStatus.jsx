@@ -92,6 +92,7 @@ export default function SponsorStatus() {
     const [participants, setParticipants] = useState([]);
     const [loading, setLoading]         = useState(true);
     const [error, setError]             = useState('');
+    const [searchTerm, setSearchTerm]   = useState('');
 
     // Bulk upload state
     const [uploadStep, setUploadStep]   = useState('idle'); // idle | validating | preview | importing | done
@@ -274,6 +275,18 @@ export default function SponsorStatus() {
         setUploadStep('idle');
     }
 
+    // Search by name, email, or company
+    const filteredParticipants = participants.filter((p) => {
+        const term = searchTerm.trim().toLowerCase();
+        if (!term) return true;
+        const fullName = `${p.first_name ?? ''} ${p.last_name ?? ''}`.toLowerCase();
+        return (
+            fullName.includes(term) ||
+            (p.email ?? '').toLowerCase().includes(term) ||
+            (p.company ?? '').toLowerCase().includes(term)
+        );
+    });
+
     if (!auth) return null;
 
     return (
@@ -403,7 +416,18 @@ export default function SponsorStatus() {
                 </div>
 
                 {/* Participants list */}
-                <p className="text-[13.5px] text-[#5f5e5a] mb-4">Registration status for participants you're sponsoring.</p>
+                <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                    <p className="text-[13.5px] text-[#5f5e5a]">Registration status for participants you're sponsoring.</p>
+                    {participants.length > 0 && (
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search by name, email, or company…"
+                            className="w-full sm:w-[300px] p-2 rounded-md border border-[#d0cec6] text-[13px] focus:outline-none focus:border-[#339544]"
+                        />
+                    )}
+                </div>
 
                 {loading && <p className="text-[13.5px] text-[#5f5e5a]">Loading…</p>}
                 {error   && <p className="text-[13.5px] text-[#A32D2D]">{error}</p>}
@@ -414,7 +438,13 @@ export default function SponsorStatus() {
                     </div>
                 )}
 
-                {!loading && !error && participants.length > 0 && (
+                {!loading && !error && participants.length > 0 && filteredParticipants.length === 0 && (
+                    <div className="bg-white border border-[#e5e3da] rounded-lg p-10 text-center">
+                        <p className="text-[14px] text-[#5f5e5a]">No registrants match "{searchTerm}".</p>
+                    </div>
+                )}
+
+                {!loading && !error && filteredParticipants.length > 0 && (
                     <div className="bg-white border border-[#e5e3da] rounded-lg overflow-hidden">
                         <table className="w-full text-[13.5px]">
                             <thead>
@@ -426,7 +456,7 @@ export default function SponsorStatus() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {participants.map((p, i) => (
+                                {filteredParticipants.map((p, i) => (
                                     <tr key={i} className="border-t border-[#e5e3da]">
                                         <td className="px-4 py-3 text-[#344054]">{p.first_name} {p.last_name}</td>
                                         <td className="px-4 py-3 text-[#5f5e5a]">{p.email}</td>

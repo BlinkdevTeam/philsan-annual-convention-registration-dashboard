@@ -19,6 +19,7 @@ export default function Sponsors() {
     const [formError, setFormError] = useState('');
     const [deletingId, setDeletingId] = useState(null);
     const [visiblePasswords, setVisiblePasswords] = useState({});
+    const [searchTerm, setSearchTerm] = useState('');
     const navigate = useNavigate();
 
     useEffect(() => { fetchData(); }, []);
@@ -88,6 +89,10 @@ export default function Sponsors() {
         finally { setDeletingId(null); }
     }
 
+    const filteredSponsors = sponsors.filter((s) =>
+        s.name.toLowerCase().includes(searchTerm.trim().toLowerCase())
+    );
+
     return (
         <div className="px-4 lg:px-8 py-6 lg:py-8">
             <div className="flex items-center justify-between mb-5">
@@ -101,6 +106,18 @@ export default function Sponsors() {
                 </button>
             </div>
 
+            {!loading && !error && sponsors.length > 0 && (
+                <div className="mb-5">
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search sponsors by name…"
+                        className="w-full max-w-[360px] p-2.5 rounded-md border border-[#d0cec6] text-[13.5px] focus:outline-none focus:border-[#339544]"
+                    />
+                </div>
+            )}
+
             {loading && <p className="text-[13.5px] text-[#5f5e5a]">Loading…</p>}
             {error   && <p className="text-[13.5px] text-[#A32D2D]">{error}</p>}
 
@@ -110,7 +127,13 @@ export default function Sponsors() {
                 </div>
             )}
 
-            {!loading && !error && sponsors.length > 0 && (
+            {!loading && !error && sponsors.length > 0 && filteredSponsors.length === 0 && (
+                <div className="bg-white border border-[#e5e3da] rounded-lg p-8 text-center">
+                    <p className="text-[14px] text-[#5f5e5a]">No sponsors match "{searchTerm}".</p>
+                </div>
+            )}
+
+            {!loading && !error && filteredSponsors.length > 0 && (
                 <>
                     {/* Desktop table */}
                     <div className="hidden lg:block bg-white border border-[#e5e3da] rounded-lg overflow-hidden">
@@ -128,7 +151,7 @@ export default function Sponsors() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {sponsors.map((s) => {
+                                {filteredSponsors.map((s) => {
                                     const c = counts[s.name.trim()] ?? { total: 0, approved: 0, pending: 0, canceled: 0 };
                                     const shown = visiblePasswords[s.id];
                                     return (
@@ -174,7 +197,7 @@ export default function Sponsors() {
 
                     {/* Mobile cards */}
                     <div className="lg:hidden flex flex-col gap-3">
-                        {sponsors.map((s) => {
+                        {filteredSponsors.map((s) => {
                             const c = counts[s.name.trim()] ?? { total: 0, approved: 0, pending: 0, canceled: 0 };
                             const shown = visiblePasswords[s.id];
                             return (
