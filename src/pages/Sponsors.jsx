@@ -20,7 +20,44 @@ export default function Sponsors() {
     const [deletingId, setDeletingId] = useState(null);
     const [visiblePasswords, setVisiblePasswords] = useState({});
     const [searchTerm, setSearchTerm] = useState('');
+    const [copiedKey, setCopiedKey] = useState(null);
     const navigate = useNavigate();
+
+    function copyToClipboard(text, key) {
+        function showCopiedState() {
+            setCopiedKey(key);
+            setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(showCopiedState).catch(() => {
+                fallbackCopy(text);
+                showCopiedState();
+            });
+        } else {
+            // navigator.clipboard is unavailable on non-HTTPS contexts (common
+            // when testing on a phone via a local network IP) — fall back to
+            // the older execCommand approach, which works without HTTPS.
+            fallbackCopy(text);
+            showCopiedState();
+        }
+    }
+
+    function fallbackCopy(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        try {
+            document.execCommand('copy');
+        } catch (err) {
+            console.error('Copy failed:', err);
+        }
+        document.body.removeChild(textarea);
+    }
 
     useEffect(() => { fetchData(); }, []);
 
@@ -164,18 +201,18 @@ export default function Sponsors() {
                                                     <span className="font-mono text-[12px] bg-[#f1efe8] px-2 py-0.5 rounded">
                                                         https://philsan-annual-convention-registrat.vercel.app/sponsor/{s.slug}
                                                     </span>
-                                                    <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/sponsor/${s.slug}`)}
-                                                        className="text-[11px] text-[#16572A] hover:underline shrink-0 bg-[#f1efe8] w-[100%]">
-                                                        Copy
+                                                    <button onClick={() => copyToClipboard(`${window.location.origin}/sponsor/${s.slug}`, `link-${s.id}`)}
+                                                        className={`text-[11px] hover:underline shrink-0 w-[100%] transition-all duration-200 ${copiedKey === `link-${s.id}` ? 'bg-[#EAF3DE] text-[#3B6D11] font-medium' : 'bg-[#f1efe8] text-[#16572A]'}`}>
+                                                        {copiedKey === `link-${s.id}` ? '✓ Copied!' : 'Copy'}
                                                     </button>
                                                 </div>
                                             </td>
                                             <td className="px-5 py-3">
                                                 <div className="flex items-center gap-[20px]">
                                                     <span className="font-mono text-[12px] text-[#344054]">{s.password}</span>
-                                                    <button onClick={() => navigator.clipboard.writeText(s.password)}
-                                                        className="text-[11px] text-[#16572A] hover:underline shrink-0">
-                                                        Copy
+                                                    <button onClick={() => copyToClipboard(s.password, `pw-${s.id}`)}
+                                                        className={`text-[11px] hover:underline shrink-0 transition-all duration-200 ${copiedKey === `pw-${s.id}` ? 'text-[#3B6D11] font-medium' : 'text-[#16572A]'}`}>
+                                                        {copiedKey === `pw-${s.id}` ? '✓ Copied!' : 'Copy'}
                                                     </button>
                                                 </div>
                                             </td>
@@ -208,12 +245,20 @@ export default function Sponsors() {
                                             {deletingId === s.id ? '…' : 'Remove'}
                                         </button>
                                     </div>
-                                    <p className="font-mono text-[11.5px] text-[#5f5e5a] mb-2">/sponsor/{s.slug}</p>
+                                    <div className="flex flex-col gap-1 mb-3">
+                                        <span className="font-mono text-[11px] bg-[#f1efe8] px-2 py-1 rounded break-all">
+                                            {window.location.origin}/sponsor/{s.slug}
+                                        </span>
+                                        <button onClick={() => copyToClipboard(`${window.location.origin}/sponsor/${s.slug}`, `link-${s.id}`)}
+                                            className={`text-[11px] hover:underline text-left transition-all duration-200 ${copiedKey === `link-${s.id}` ? 'text-[#3B6D11] font-medium' : 'text-[#16572A]'}`}>
+                                            {copiedKey === `link-${s.id}` ? '✓ Copied!' : 'Copy link'}
+                                        </button>
+                                    </div>
                                     <div className="flex items-center gap-2 mb-3">
                                         <span className="font-mono text-[12px] text-[#344054]">{s.password}</span>
-                                        <button onClick={() => navigator.clipboard.writeText(s.password)}
-                                            className="text-[11px] text-[#16572A] hover:underline">
-                                            Copy
+                                        <button onClick={() => copyToClipboard(s.password, `pw-${s.id}`)}
+                                            className={`text-[11px] hover:underline transition-all duration-200 ${copiedKey === `pw-${s.id}` ? 'text-[#3B6D11] font-medium' : 'text-[#16572A]'}`}>
+                                            {copiedKey === `pw-${s.id}` ? '✓ Copied!' : 'Copy'}
                                         </button>
                                     </div>
                                     <div className="grid grid-cols-4 gap-2 text-center">
