@@ -41,7 +41,26 @@ export default function ParticipantQR() {
         fetchParticipant();
     }, [id]);
 
-    async function handlePrint() {
+    const [confirmPrintOpen, setConfirmPrintOpen] = useState(false);
+
+    function handlePrint() {
+        // Browsers do not expose whether the user clicked "Print" or
+        // "Cancel" in the native dialog — `afterprint` fires for both,
+        // indistinguishably, in every browser. The only accurate way to
+        // count actual prints is to ask the person directly once the
+        // dialog has closed.
+        function askToConfirm() {
+            window.removeEventListener('afterprint', askToConfirm);
+            setConfirmPrintOpen(true);
+        }
+
+        window.addEventListener('afterprint', askToConfirm);
+        window.print();
+    }
+
+    async function confirmPrintSucceeded() {
+        setConfirmPrintOpen(false);
+
         const { error } = await supabase.rpc('increment_qr_print_count', {
             p_id: participant.id,
         });
@@ -54,8 +73,6 @@ export default function ParticipantQR() {
         } else {
             console.error('Failed to record print count:', error);
         }
-
-        window.print();
     }
 
     async function handleDownloadForLabelife() {
@@ -180,7 +197,7 @@ export default function ParticipantQR() {
     const displayCompany = truncateCompany(participant.company);
 
     return (
-        <div className="min-h-screen bg-[#f1efe8] flex flex-col items-center py-10 px-4">
+        <div className="qr-page-root min-h-screen bg-[#f1efe8] flex flex-col items-center py-10 px-4">
             {/* Controls — hidden when printing */}
             <div className="no-print w-full max-w-[420px] flex items-center justify-between mb-6">
                 <button
@@ -210,8 +227,9 @@ export default function ParticipantQR() {
                 </div>
             </div>
 
-            {/* Hidden high-res QR source used only for the PNG export — not shown or printed */}
-            <div style={{ position: 'fixed', left: '-9999px', top: 0 }}>
+            {/* Hidden high-res QR source used only for the PNG export — excluded from print
+                so it can't be counted as a second page's content by the print engine. */}
+            <div className="no-print" style={{ position: 'fixed', left: '-9999px', top: 0 }}>
                 <QRCodeCanvas
                     ref={hiddenQrRef}
                     value={participant.ticket_token}
@@ -228,16 +246,16 @@ export default function ParticipantQR() {
                 </div>
             )}
 
-            {/* Printable sticker card — 7cm x 4cm, matching the physical sticker size */}
+            {/* Printable sticker card — sized to the loaded label stock (1.6in x 2.8in) */}
             <div
                 id="qr-print-card"
                 className="bg-white shadow-md flex items-center justify-center"
                 style={{
-                    width: '7cm',
-                    height: '4cm',
-                    padding: '0.3cm',
+                    width: '2.8in',
+                    height: '1.6in',
+                    padding: '0.12in',
                     boxSizing: 'border-box',
-                    gap: '0.4cm',
+                    gap: '0.16in',
                 }}
             >
                 <div className="flex flex-col items-center gap-[8px]">
@@ -283,18 +301,65 @@ export default function ParticipantQR() {
 
             <style>{`
                 @page {
-                    size: 7cm 4cm;
+                    size: 2.8in 1.6in;
                     margin: 0;
                 }
                 @media print {
                     .no-print { display: none !important; }
-                    body { background: white !important; }
+                    html, body {
+                        background: white !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        width: 2.8in;
+                        height: 1.6in;
+                    }
+                    .qr-page-root {
+                        min-height: 0 !important;
+                        height: 1.6in !important;
+                        width: 2.8in !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        overflow: hidden;
+                    }
                     #qr-print-card {
                         box-shadow: none !important;
-                        margin: 0;
+                        margin: 0 !important;
                     }
                 }
             `}</style>
+
+            {/* Confirm the label actually printed — browsers give no way to
+                detect this automatically, so we ask directly. */}
+            {confirmPrintOpen && (
+                <div
+                    className="no-print fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4"
+                    onClick={(e) => { if (e.target === e.currentTarget) setConfirmPrintOpen(false); }}
+                >
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-[380px] p-6">
+                        <h2 className="text-[16px] font-bold text-[#16572A] mb-2">
+                            Did the label print?
+                        </h2>
+                        <p className="text-[13px] text-[#5f5e5a] mb-5 leading-[1.6]">
+                            Confirm only if the sticker actually came out of the printer.
+                            This is how we keep the print count accurate.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setConfirmPrintOpen(false)}
+                                className="flex-1 py-2.5 border border-[#d0cec6] rounded-md text-[13.5px] text-[#344054] hover:bg-[#f7f6f1]"
+                            >
+                                No, it didn't print
+                            </button>
+                            <button
+                                onClick={confirmPrintSucceeded}
+                                className="flex-1 py-2.5 bg-[#16572A] hover:bg-[#EDB221] text-white text-[13.5px] font-medium rounded-md"
+                            >
+                                Yes, it printed
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
