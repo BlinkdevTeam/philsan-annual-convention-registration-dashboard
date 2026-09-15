@@ -18,6 +18,10 @@ const STATUS_BADGE = {
     canceled: 'bg-[#F0E6FF] text-[#6B21A8]',
 };
 
+function canTransfer(status) {
+    return status === 'pending' || status === 'approved';
+}
+
 export default function Dashboard() {
     const navigate = useNavigate();
     const [statusFilter, setStatusFilter] = useState('pending');
@@ -121,7 +125,7 @@ export default function Dashboard() {
                                         </td>
                                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex justify-end">
-                                                {p.reg_status === 'approved' && (
+                                                {canTransfer(p.reg_status) && (
                                                     <button
                                                         onClick={() => setTransferTarget(p)}
                                                         className="px-3 py-1.5 rounded-md text-[12.5px] font-medium text-[#16572A] border border-[#16572A]">
@@ -153,7 +157,7 @@ export default function Dashboard() {
                                 {p.age && <p className="text-[12.5px] text-[#5f5e5a]">Age: {p.age}</p>}
                                 {p.is_student === 'yes' && <p className="text-[11.5px] text-[#16572A] mt-1">Student</p>}
                                 {p.sponsored === 'yes' && <p className="text-[11.5px] text-[#854F0B] mt-1">Sponsored by {p.sponsor || 'sponsor'}</p>}
-                                {p.reg_status === 'approved' && (
+                                {canTransfer(p.reg_status) && (
                                     <div className="mt-3" onClick={(e) => e.stopPropagation()}>
                                         <button
                                             onClick={() => setTransferTarget(p)}
