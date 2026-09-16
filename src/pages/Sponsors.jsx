@@ -201,7 +201,7 @@ export default function Sponsors() {
                                                     <span className="font-mono text-[12px] bg-[#f1efe8] px-2 py-0.5 rounded">
                                                         https://philsan-annual-convention-registrat.vercel.app/sponsor/{s.slug}
                                                     </span>
-                                                    <button onClick={() => copyToClipboard(`${window.location.origin}/sponsor/${s.slug}`, `link-${s.id}`)}
+                                                    <button onClick={() => copyToClipboard(`https://philsan-annual-convention-registrat.vercel.app/sponsor/${s.slug}`, `link-${s.id}`)}
                                                         className={`text-[11px] hover:underline shrink-0 w-[100%] transition-all duration-200 ${copiedKey === `link-${s.id}` ? 'bg-[#EAF3DE] text-[#3B6D11] font-medium' : 'bg-[#f1efe8] text-[#16572A]'}`}>
                                                         {copiedKey === `link-${s.id}` ? '✓ Copied!' : 'Copy'}
                                                     </button>
@@ -247,9 +247,9 @@ export default function Sponsors() {
                                     </div>
                                     <div className="flex flex-col gap-1 mb-3">
                                         <span className="font-mono text-[11px] bg-[#f1efe8] px-2 py-1 rounded break-all">
-                                            {window.location.origin}/sponsor/{s.slug}
+                                            https://philsan-annual-convention-registrat.vercel.app/sponsor/{s.slug}
                                         </span>
-                                        <button onClick={() => copyToClipboard(`${window.location.origin}/sponsor/${s.slug}`, `link-${s.id}`)}
+                                        <button onClick={() => copyToClipboard(`https://philsan-annual-convention-registrat.vercel.app/sponsor/${s.slug}`, `link-${s.id}`)}
                                             className={`text-[11px] hover:underline text-left transition-all duration-200 ${copiedKey === `link-${s.id}` ? 'text-[#3B6D11] font-medium' : 'text-[#16572A]'}`}>
                                             {copiedKey === `link-${s.id}` ? '✓ Copied!' : 'Copy link'}
                                         </button>
