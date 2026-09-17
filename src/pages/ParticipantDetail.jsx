@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { useAdminParticipantEdit } from '../hooks/useAdminParticipantEdit';
 
 const SUPABASE_URL = 'https://pskballrwzdbovtylgjs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBza2JhbGxyd3pkYm92dHlsZ2pzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MzU4MTAsImV4cCI6MjA5NzIxMTgxMH0.LhtBD_E8aEUHLI4UAFqQ5-3_iVqwOLYN5TklbCDDeIg';
@@ -35,6 +36,12 @@ export default function ParticipantDetail() {
     // Modal state: null | 'approve' | 'reject' | 'cancel'
     const [modal, setModal] = useState(null);
     const [reason, setReason] = useState('');
+
+    const { openAdminEdit, AdminEditModal } = useAdminParticipantEdit({
+        onUpdated: (updated) => {
+            setParticipant(p => ({ ...p, ...updated }));
+        }
+    });
 
     useEffect(() => { fetchData(); }, [id]);
 
@@ -143,6 +150,7 @@ export default function ParticipantDetail() {
     if (error)   return <div className="px-8 py-8 text-[13.5px] text-[#A32D2D]">{error}</div>;
 
     const status = participant.reg_status;
+    const isSponsored = participant.sponsored === 'yes';
 
     return (
         <div className="px-8 py-8 max-w-[860px]">
@@ -162,14 +170,23 @@ export default function ParticipantDetail() {
                 </span>
             </div>
 
-            <Link
-                to={`/participants/${id}/qr`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 mb-6 px-4 py-2 border border-[#16572A] text-[#16572A] hover:bg-[#EAF3DE] text-[13px] font-medium rounded-md"
-            >
-                🎫 View / Print QR Code
-            </Link>
+            <div className="flex items-center gap-3 mb-6 flex-wrap">
+                <Link
+                    to={`/participants/${id}/qr`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-[#16572A] text-[#16572A] hover:bg-[#EAF3DE] text-[13px] font-medium rounded-md"
+                >
+                    🎫 View / Print QR Code
+                </Link>
+
+                <button
+                    onClick={() => openAdminEdit(participant)}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-[#344054] text-[#344054] hover:bg-[#f7f6f1] text-[13px] font-medium rounded-md"
+                >
+                    ✎ Edit details
+                </button>
+            </div>
 
             {/* Details + Proof */}
             <div className="flex flex-col md:grid grid-cols-[1fr_1fr] gap-6 mb-6">
@@ -182,7 +199,7 @@ export default function ParticipantDetail() {
                             { label: 'Mobile',      value: participant.mobile ?? '—' },
                             { label: 'Company',     value: participant.company ?? '—' },
                             { label: 'Student',     value: participant.is_student ? 'Yes' : 'No' },
-                            { label: 'Sponsored',   value: participant.is_sponsored ? 'Yes' : 'No' },
+                            { label: 'Sponsored',   value: isSponsored ? 'Yes' : 'No' },
                             { label: 'Sponsor',     value: participant.sponsor ?? '—' },
                             { label: 'Registered',  value: new Date(participant.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) },
                         ].map(({ label, value }) => (
@@ -208,7 +225,7 @@ export default function ParticipantDetail() {
 
                 <div className="bg-white border border-[#e5e3da] rounded-lg p-5">
                     <h2 className="text-[13.5px] font-bold text-[#344054] mb-4">Proof of payment</h2>
-                    {participant.is_sponsored ? (
+                    {isSponsored ? (
                         <div className="flex items-center justify-center h-[200px] bg-[#f7f6f1] rounded-md">
                             <p className="text-[13px] text-[#5f5e5a] text-center px-4">Sponsored — no proof required.</p>
                         </div>
@@ -352,6 +369,8 @@ export default function ParticipantDetail() {
                     </div>
                 </div>
             )}
+
+            <AdminEditModal />
         </div>
     );
 }
