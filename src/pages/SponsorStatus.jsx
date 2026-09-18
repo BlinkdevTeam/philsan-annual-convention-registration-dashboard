@@ -4,7 +4,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 const SUPABASE_URL    = 'https://pskballrwzdbovtylgjs.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBza2JhbGxyd3pkYm92dHlsZ2pzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MzU4MTAsImV4cCI6MjA5NzIxMTgxMH0.LhtBD_E8aEUHLI4UAFqQ5-3_iVqwOLYN5TklbCDDeIg';
 
-// TODO: replace with deployed Edge Function URL
 const SPONSOR_PARTICIPANTS_URL = '';
 const VALIDATE_EMAIL_MX_URL    = 'https://pskballrwzdbovtylgjs.supabase.co/functions/v1/validate-email-mx';
 
@@ -34,7 +33,6 @@ const ALLOWED_VALUES = {
     souvenir:            ['no','digital'],
 };
 
-// CSV template content
 const CSV_TEMPLATE = [
     REQUIRED_COLUMNS.join(','),
     '# membership: regular | associate | Donor | non_member',
@@ -72,14 +70,12 @@ function parseCSV(text) {
 function validateRow(row, index) {
     const errors = [];
 
-    // Required fields
     for (const col of REQUIRED_COLUMNS) {
         if (!row[col] || !row[col].toString().trim()) {
             errors.push(`Row ${index + 1}: "${col}" is required.`);
         }
     }
 
-    // Fixed value fields
     for (const [field, allowed] of Object.entries(ALLOWED_VALUES)) {
         if (row[field] && !allowed.includes(row[field].trim())) {
             errors.push(`Row ${index + 1}: "${field}" must be one of: ${allowed.join(', ')}. Got "${row[field]}".`);
@@ -100,14 +96,12 @@ export default function SponsorStatus() {
     const [error, setError]             = useState('');
     const [searchTerm, setSearchTerm]   = useState('');
 
-    // Edit participant state
     const [editingParticipant, setEditingParticipant] = useState(null);
     const [editForm, setEditForm]       = useState(null);
     const [editError, setEditError]     = useState('');
     const [editSaving, setEditSaving]   = useState(false);
 
-    // Status change (cancel / make pending) state
-    const [pendingStatusAction, setPendingStatusAction] = useState(null); // { participant, newStatus }
+    const [pendingStatusAction, setPendingStatusAction] = useState(null);
     const [statusActionSaving, setStatusActionSaving]   = useState(false);
     const [statusActionError, setStatusActionError]     = useState('');
 
@@ -117,6 +111,7 @@ export default function SponsorStatus() {
     const [validRows, setValidRows]     = useState([]);
     const [skippedRows, setSkippedRows] = useState([]);
     const [importResults, setImportResults] = useState(null);
+    const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
 
     useEffect(() => {
         const stored = sessionStorage.getItem('philsan_sponsor_auth');
@@ -164,7 +159,6 @@ export default function SponsorStatus() {
         const text = await file.text();
         const { headers, rows } = parseCSV(text);
 
-        // Check required columns exist
         const missingCols = REQUIRED_COLUMNS.filter(c => !headers.includes(c));
         if (missingCols.length > 0) {
             alert(`CSV is missing required columns: ${missingCols.join(', ')}\n\nPlease use the provided template.`);
@@ -179,14 +173,14 @@ export default function SponsorStatus() {
         setParsedRows(rows);
         setUploadStep('validating');
 
-        // Client-side validation first
+        // 1. Client-side field validation
         const clientErrors = {};
         rows.forEach((row, i) => {
             const errs = validateRow(row, i);
             if (errs.length) clientErrors[i] = errs;
         });
 
-        // MX email check for rows that passed client validation
+        // 2. MX email check for rows that passed client validation
         const emailsToCheck = rows
             .filter((_, i) => !clientErrors[i])
             .map(r => r.email.trim());
@@ -210,12 +204,47 @@ export default function SponsorStatus() {
             }
         }
 
-        // Also check for duplicate emails within the CSV itself
+        // 3. Duplicate emails within the CSV itself
         const emailCount = {};
         rows.forEach(r => {
             const e = r.email?.trim().toLowerCase();
             if (e) emailCount[e] = (emailCount[e] || 0) + 1;
         });
+
+        // 4. Duplicate emails already active in the database (pending/approved)
+        //    — this is the check that was missing, causing insert-time failures.
+        let dbActiveEmails = new Set();
+        const emailsToCheckDb = emailsToCheck.filter(e => !mxResults[e.toLowerCase()]);
+        if (emailsToCheckDb.length > 0) {
+            try {
+                const inList = emailsToCheckDb.map(e => `"${e.toLowerCase()}"`).join(',');
+                const res = await fetch(
+                    `${SUPABASE_URL}/rest/v1/participants?select=email,reg_status&email=in.(${inList})&reg_status=in.(pending,approved)`,
+                    {
+                        headers: {
+                            apikey: SUPABASE_ANON_KEY,
+                            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+                            'Content-Type': 'application/json',
+                        }
+                    }
+                );
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    data.forEach(row => dbActiveEmails.add(`${row.email.toLowerCase()}|${row.reg_status}`));
+                }
+            } catch {
+                // If this check fails, we still catch conflicts at import time (per-row, non-blocking)
+            }
+        }
+
+        function dbConflictReason(email) {
+            const lower = email.toLowerCase();
+            const pendingMatch  = [...dbActiveEmails].find(v => v === `${lower}|pending`);
+            const approvedMatch = [...dbActiveEmails].find(v => v === `${lower}|approved`);
+            if (approvedMatch) return 'already registered and approved';
+            if (pendingMatch)  return 'already registered and currently pending review';
+            return null;
+        }
 
         const valid   = [];
         const skipped = [];
@@ -226,6 +255,9 @@ export default function SponsorStatus() {
 
             if (mxResults[email]) rowErrors.push(`Row ${i + 1}: Email "${email}" — ${mxResults[email]}`);
             if (emailCount[email] > 1) rowErrors.push(`Row ${i + 1}: Duplicate email "${email}" in this file.`);
+
+            const dbReason = dbConflictReason(email || '');
+            if (dbReason) rowErrors.push(`Row ${i + 1}: Email "${email}" is ${dbReason}.`);
 
             if (rowErrors.length === 0) {
                 valid.push(row);
@@ -242,43 +274,72 @@ export default function SponsorStatus() {
     async function handleImport() {
         if (!auth || validRows.length === 0) return;
         setUploadStep('importing');
+        setImportProgress({ done: 0, total: validRows.length });
 
-        const toInsert = validRows.map(row => ({
-            first_name:         row.first_name.trim(),
-            last_name:          row.last_name.trim(),
-            middle_name:        row.middle_name?.trim() || null,
-            email:              row.email.trim().toLowerCase(),
-            mobile:             row.mobile.trim(),
-            company:            row.company.trim(),
-            position:           row.position.trim(),
-            agri_license:       row.agri_license?.trim() || 'N/A',
-            membership:         row.membership.trim(),
-            age:                row.age.trim(),
-            is_student:         row.is_student.trim(),
-            certificate_needed: row.certificate_needed.trim(),
-            souvenir:           row.souvenir.trim(),
-            sponsored:          'yes',
-            sponsor:            auth.name,
-            reg_status:         'pending',
-            reg_request:        new Date().toISOString(),
-        }));
+        const inserted = [];
+        const failed    = [];
 
-        const { data, error } = await fetch(`${SUPABASE_URL}/rest/v1/participants`, {
-            method: 'POST',
-            headers: {
-                apikey: SUPABASE_ANON_KEY,
-                Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-                'Content-Type': 'application/json',
-                Prefer: 'return=representation',
-            },
-            body: JSON.stringify(toInsert),
-        }).then(r => r.json().then(d => ({ data: r.ok ? d : null, error: r.ok ? null : d })));
+        // Insert one row at a time so a single conflicting email
+        // only skips that participant, not the whole batch.
+        for (let i = 0; i < validRows.length; i++) {
+            const row = validRows[i];
+            const payload = {
+                first_name:         row.first_name.trim(),
+                last_name:          row.last_name.trim(),
+                middle_name:        row.middle_name?.trim() || null,
+                email:              row.email.trim().toLowerCase(),
+                mobile:             row.mobile.trim(),
+                company:            row.company.trim(),
+                position:           row.position.trim(),
+                agri_license:       row.agri_license?.trim() || 'N/A',
+                membership:         row.membership.trim(),
+                age:                row.age.trim(),
+                is_student:         row.is_student.trim(),
+                certificate_needed: row.certificate_needed.trim(),
+                souvenir:           row.souvenir.trim(),
+                sponsored:          'yes',
+                sponsor:            auth.name,
+                reg_status:         'pending',
+                reg_request:        new Date().toISOString(),
+            };
+
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/participants`, {
+                    method: 'POST',
+                    headers: {
+                        apikey: SUPABASE_ANON_KEY,
+                        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                        Prefer: 'return=representation',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (res.ok) {
+                    const [row] = await res.json();
+                    inserted.push(row);
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    const isDupeConflict = (err.message || '').includes('participants_email_active_unique');
+                    failed.push({
+                        email: payload.email,
+                        reason: isDupeConflict
+                            ? 'already registered (email conflict during import)'
+                            : (err.message || 'unknown error'),
+                    });
+                }
+            } catch (err) {
+                failed.push({ email: payload.email, reason: err.message || 'network error' });
+            }
+
+            setImportProgress({ done: i + 1, total: validRows.length });
+        }
 
         setImportResults({
-            inserted: data ? data.length : 0,
+            inserted: inserted.length,
             skipped:  skippedRows.length,
-            failed:   error ? toInsert.length : 0,
-            error:    error?.message || null,
+            failed:   failed.length,
+            failedDetails: failed,
         });
         setUploadStep('done');
         if (auth) fetchParticipants(auth);
@@ -289,6 +350,7 @@ export default function SponsorStatus() {
         setValidRows([]);
         setSkippedRows([]);
         setImportResults(null);
+        setImportProgress({ done: 0, total: 0 });
         setUploadStep('idle');
     }
 
@@ -375,7 +437,6 @@ export default function SponsorStatus() {
 
         try {
             if (emailChanged) {
-                // 1. Format + MX check via existing edge function
                 const mxRes = await fetch(VALIDATE_EMAIL_MX_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -389,7 +450,6 @@ export default function SponsorStatus() {
                     return;
                 }
 
-                // 2. Duplicate check, excluding this participant's own row
                 const dupRes = await fetch(
                     `${SUPABASE_URL}/rest/v1/participants?select=id,email,reg_status&email=ilike.${encodeURIComponent(newEmail)}`,
                     { headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' } }
@@ -412,7 +472,6 @@ export default function SponsorStatus() {
                         setEditSaving(false);
                         return;
                     }
-                    // rejected/canceled matches are allowed to be reused — fall through
                 }
             }
 
@@ -458,7 +517,6 @@ export default function SponsorStatus() {
         }
     }
 
-    // Search by name, email, or company
     const filteredParticipants = participants.filter((p) => {
         const term = searchTerm.trim().toLowerCase();
         if (!term) return true;
@@ -579,9 +637,19 @@ export default function SponsorStatus() {
                     )}
 
                     {uploadStep === 'importing' && (
-                        <div className="flex items-center gap-3 p-4 bg-[#f7f6f1] rounded-md">
-                            <div className="w-4 h-4 border-2 border-[#339544] border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-[13px] text-[#5f5e5a]">Importing participants…</p>
+                        <div className="flex flex-col gap-2 p-4 bg-[#f7f6f1] rounded-md">
+                            <div className="flex items-center gap-3">
+                                <div className="w-4 h-4 border-2 border-[#339544] border-t-transparent rounded-full animate-spin"></div>
+                                <p className="text-[13px] text-[#5f5e5a]">
+                                    Importing participants… ({importProgress.done}/{importProgress.total})
+                                </p>
+                            </div>
+                            <div className="w-full h-1.5 bg-[#e5e3da] rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-[#339544] transition-all"
+                                    style={{ width: `${importProgress.total ? (importProgress.done / importProgress.total) * 100 : 0}%` }}
+                                />
+                            </div>
                         </div>
                     )}
 
@@ -590,9 +658,19 @@ export default function SponsorStatus() {
                             <div className="bg-[#EAF3DE] border border-[#c3e6cb] rounded-md p-4">
                                 <p className="text-[13.5px] font-bold text-[#3B6D11] mb-1">Import complete</p>
                                 <p className="text-[13px] text-[#3B6D11]">{importResults.inserted} participant{importResults.inserted !== 1 ? 's' : ''} submitted for review.</p>
-                                {importResults.skipped > 0 && <p className="text-[12.5px] text-[#854F0B] mt-1">{importResults.skipped} row{importResults.skipped !== 1 ? 's' : ''} were skipped due to validation errors.</p>}
-                                {importResults.error && <p className="text-[12.5px] text-[#A32D2D] mt-1">Some rows failed to insert: {importResults.error}</p>}
+                                {importResults.skipped > 0 && <p className="text-[12.5px] text-[#854F0B] mt-1">{importResults.skipped} row{importResults.skipped !== 1 ? 's' : ''} were skipped during validation.</p>}
+                                {importResults.failed > 0 && <p className="text-[12.5px] text-[#A32D2D] mt-1">{importResults.failed} row{importResults.failed !== 1 ? 's' : ''} failed to insert.</p>}
                             </div>
+
+                            {importResults.failedDetails?.length > 0 && (
+                                <div className="bg-[#FCEBEB] border border-[#f5c6c6] rounded-md p-3 max-h-[160px] overflow-y-auto">
+                                    <p className="text-[12.5px] font-medium text-[#A32D2D] mb-2">Failed rows:</p>
+                                    {importResults.failedDetails.map((f, i) => (
+                                        <p key={i} className="text-[12px] text-[#A32D2D]">{f.email} — {f.reason}</p>
+                                    ))}
+                                </div>
+                            )}
+
                             <button onClick={resetUpload} className="w-fit px-4 py-2 rounded-md border border-[#e5e3da] text-[13px] text-[#344054]">Upload another file</button>
                         </div>
                     )}
