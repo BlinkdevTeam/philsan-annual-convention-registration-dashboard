@@ -13,21 +13,26 @@ export const CPD_DEFAULTS = {
   topics: 'Gut Microbiome Revolution\nNext Generation Precision Nutrition\nNutrition Feed Solutions\nBreak-out Sessions',
   time: '',
   room: '',
-  monitor_name: '',
-  representative_name: '',
   signed_date: '',
 };
 
-const BLANK_LICENSE = /^(n\/?a|none|nil|-+|0+|\.+)$/i;
-
+// A license number is left OUT of the CPD forms when it is:
+//   - blank
+//   - contains any letter (N/A, NA, n/a, none, "pending", "A12345", …)
+//   - has no digits at all ("-", "...", "/")
+//   - is all zeros ("0", "0000")
 export const cleanLicense = (v) => {
   const s = String(v ?? '').trim();
-  return !s || BLANK_LICENSE.test(s) ? '' : s;
+  if (!s) return '';
+  if (/\p{L}/u.test(s)) return '';
+  if (!/\d/.test(s)) return '';
+  if (/^0+$/.test(s)) return '';
+  return s;
 };
 
-// Worth a second look before submitting to PRC
+// Included, but worth a second look before submitting to PRC
 export function licenseWarning(lic) {
-  if (!/^\d+$/.test(lic)) return 'contains letters or symbols';
+  if (!/^\d+$/.test(lic)) return 'contains spaces or symbols';
   if (/^(\d)\1{2,}$/.test(lic)) return 'looks like a placeholder';
   return '';
 }
@@ -88,8 +93,6 @@ function common(settings) {
       .filter(Boolean),
     time: s.time,
     room: s.room,
-    monitor_name: s.monitor_name.toUpperCase(),
-    representative_name: s.representative_name.toUpperCase(),
     signed_date: s.signed_date,
   };
 }

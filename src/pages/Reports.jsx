@@ -274,8 +274,6 @@ const CPD_FIELDS = [
   ['time', 'Time', 'text', false, 'e.g. 7:30 AM – 5:30 PM'],
   ['room', 'Room', 'text'],
   ['topics', 'Topic/s (one per line, Attendance Sheet only)', 'textarea', true],
-  ['monitor_name', 'Certified correct by (CPD Program Monitor)', 'text'],
-  ['representative_name', "Concurred by (CPD Provider's Authorized Representative)", 'text'],
   ['signed_date', 'Date and Time (signature block)', 'text', false, 'Leave blank to write by hand'],
 ];
 
