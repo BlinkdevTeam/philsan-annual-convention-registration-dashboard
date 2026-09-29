@@ -3,11 +3,131 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { supabase } from '../lib/supabaseClient';
 
-// Printer's native resolution — used to size the exported PNG so it prints
-// at the exact physical dimensions on the Phomemo label printer.
+// ─── Sheet geometry (all in millimetres) ────────────────────────────────
+// The sheet is 70 x 80 mm: a 70 x 70 mm label with no blank extension above it
+// and a 10 mm blank extension below it. Cut lines mark the label edges.
+const LABEL_MM = 70;
+const EXT_TOP_MM = 0;                         // blank extension above the label
+const EXT_BOTTOM_MM = 10;                     // blank extension below the label
+const SHEET_W_MM = LABEL_MM;
+const SHEET_H_MM = EXT_TOP_MM + LABEL_MM + EXT_BOTTOM_MM;
+
+const PAD_MM = 4;
+const INNER_MM = LABEL_MM - PAD_MM * 2;
+const QR_MM = 25;
+const GAP_MM = 2;                             // gap above the name
+const COMPANY_MT_MM = (15 * 25.4) / 96;       // space above company (was 20px)
+const COMPANY_MB_MM = (0 * 25.4) / 96;        // space below company (was 10px)
+
+const NAME_MAX_MM = 10;
+const NAME_MIN_MM = 3;
+const NAME_LINE_H = 1.1;
+const COMPANY_MAX_MM = 3.8;
+const COMPANY_MIN_MM = 2;
+const COMPANY_LINE_H = 1.15;
+
+// Cut line style (dashed "trace" line)
+const CUT_LINE_MM = 0.3;
+const CUT_DASH_MM = 2;
+const CUT_GAP_MM = 1.2;
+
+// Printer's native resolution — used for the exported PNG.
 const PRINT_DPI = 203;
-const CM_TO_PX = PRINT_DPI / 2.54;
-const PX96_TO_PX = PRINT_DPI / 96; // converts a CSS px (96dpi) value to print-DPI px
+const MM_TO_PX = PRINT_DPI / 25.4;
+
+// Montserrat Bold everywhere (measuring, screen, print, PNG export).
+const FONT = "'Montserrat', Arial, Helvetica, sans-serif";
+const WEIGHT = 700;            // name: Montserrat Bold
+const W_COMPANY = 400;         // company: Montserrat Regular
+const COMPANY_MAX_LINES = 2;   // company wraps onto up to 2 lines
+
+// Loads Montserrat Bold + Regular from /public/fonts once. Falls back to Arial if missing.
+let fontPromise = null;
+function loadMontserrat() {
+    if (!fontPromise) {
+        const faces = [
+            new FontFace('Montserrat', 'url(/fonts/Montserrat-Bold.ttf)', { weight: String(WEIGHT) }),
+            new FontFace('Montserrat', 'url(/fonts/Montserrat-Regular.ttf)', { weight: String(W_COMPANY) }),
+        ];
+        fontPromise = Promise.all(
+            faces.map((f) =>
+                f.load().then((loaded) => {
+                    document.fonts.add(loaded);
+                    return true;
+                })
+            )
+        ).catch(() => false);
+    }
+    return fontPromise;
+}
+
+// ─── Auto text sizing ───────────────────────────────────────────────────
+let measureCtx = null;
+function measureEm(text, weight = WEIGHT) {
+    if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
+    measureCtx.font = `${weight} 100px ${FONT}`;
+    return measureCtx.measureText(text).width / 100; // width in "em"
+}
+
+function wrapWords(text, sizeMm, maxWidthMm, weight = WEIGHT) {
+    const words = text.split(/\s+/).filter(Boolean);
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+        const test = line ? `${line} ${word}` : word;
+        if (measureEm(test, weight) * sizeMm <= maxWidthMm || !line) {
+            line = test;
+        } else {
+            lines.push(line);
+            line = word;
+        }
+    }
+    if (line) lines.push(line);
+    return lines;
+}
+
+// First and last name are separate blocks; each wraps on its own.
+// Picks the largest font size where everything fits inside the given box.
+function fitName(paragraphs, maxWidthMm, maxHeightMm) {
+    const parts = paragraphs.map((p) => (p ?? '').trim()).filter(Boolean);
+    if (parts.length === 0) return { size: NAME_MAX_MM, lines: [] };
+
+    let last = null;
+    for (let size = NAME_MAX_MM; size >= NAME_MIN_MM; size -= 0.25) {
+        const lines = parts.flatMap((p) => wrapWords(p, size, maxWidthMm));
+        last = { size, lines };
+        const widest = Math.max(...lines.map((l) => measureEm(l) * size));
+        if (widest <= maxWidthMm && lines.length * size * NAME_LINE_H <= maxHeightMm) {
+            return last;
+        }
+    }
+    return last;
+}
+
+// Full company name (never truncated). Wraps onto up to COMPANY_MAX_LINES lines
+// and uses the largest size at which it fits.
+function fitCompany(text, maxWidthMm) {
+    const clean = (text ?? '').trim().replace(/\s+/g, ' ');
+    if (!clean) return { size: 0, lines: [] };
+    let last = null;
+    for (let size = COMPANY_MAX_MM; size >= COMPANY_MIN_MM; size -= 0.1) {
+        const lines = wrapWords(clean, size, maxWidthMm, W_COMPANY);
+        last = { size, lines };
+        const widest = Math.max(...lines.map((l) => measureEm(l, W_COMPANY) * size));
+        if (widest <= maxWidthMm && lines.length <= COMPANY_MAX_LINES) return last;
+    }
+    return last;
+}
+
+// Layout (top to bottom): name, QR, company at the bottom.
+function computeLayout(participant) {
+    const company = fitCompany(participant.company, INNER_MM);
+    const companyH = company.lines.length * company.size * COMPANY_LINE_H;
+    const companyBlock = company.lines.length ? COMPANY_MT_MM + companyH + COMPANY_MB_MM : 0;
+    const nameMaxH = INNER_MM - GAP_MM - companyBlock - QR_MM - COMPANY_MT_MM;
+    const name = fitName([participant.first_name, participant.last_name], INNER_MM, nameMaxH);
+    return { name, company, companyH, nameMaxH };
+}
 
 export default function ParticipantQR() {
     const { id } = useParams();
@@ -18,6 +138,13 @@ export default function ParticipantQR() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [downloading, setDownloading] = useState(false);
+    const [confirmPrintOpen, setConfirmPrintOpen] = useState(false);
+    const [fontReady, setFontReady] = useState(false);
+
+    // Load Montserrat, then re-render so the auto-fit re-measures with it.
+    useEffect(() => {
+        loadMontserrat().then(() => setFontReady(true));
+    }, []);
 
     useEffect(() => {
         async function fetchParticipant() {
@@ -41,14 +168,9 @@ export default function ParticipantQR() {
         fetchParticipant();
     }, [id]);
 
-    const [confirmPrintOpen, setConfirmPrintOpen] = useState(false);
-
     function handlePrint() {
-        // Browsers do not expose whether the user clicked "Print" or
-        // "Cancel" in the native dialog — `afterprint` fires for both,
-        // indistinguishably, in every browser. The only accurate way to
-        // count actual prints is to ask the person directly once the
-        // dialog has closed.
+        // `afterprint` fires for both Print and Cancel, so we ask the user
+        // to confirm once the dialog closes to keep the count accurate.
         function askToConfirm() {
             window.removeEventListener('afterprint', askToConfirm);
             setConfirmPrintOpen(true);
@@ -77,8 +199,8 @@ export default function ParticipantQR() {
 
     async function handleDownloadForLabelife() {
         setDownloading(true);
+        await loadMontserrat(); // make sure the font is ready before measuring/drawing
 
-        // Count this as a print attempt too, same as the browser Print button.
         const { error: countError } = await supabase.rpc('increment_qr_print_count', {
             p_id: participant.id,
         });
@@ -89,89 +211,85 @@ export default function ParticipantQR() {
             }));
         }
 
-        // Card geometry — mirrors the on-screen layout exactly: QR + name
-        // sit in a horizontal row, company name centered underneath.
-        const cardW = Math.round(7 * CM_TO_PX);
-        const cardH = Math.round(4 * CM_TO_PX);
-        const qrSize = Math.round(1.8 * CM_TO_PX);
-        const rowGap = Math.round(0.2 * CM_TO_PX); // gap between QR and names
-        const columnGap = Math.round(8 * PX96_TO_PX); // gap between row and company (CSS gap-[8px])
-        const nameFontPx = Math.round(1 * CM_TO_PX);
-        const companyFontPx = Math.round(0.32 * CM_TO_PX);
-        const companyMarginTop = Math.round(0.12 * CM_TO_PX);
+        const { name, company, companyH } = computeLayout(participant);
+        const px = (mm) => Math.round(mm * MM_TO_PX);
 
+        // Canvas is the full 70 x 80 mm sheet
         const canvas = document.createElement('canvas');
-        canvas.width = cardW;
-        canvas.height = cardH;
+        canvas.width = px(SHEET_W_MM);
+        canvas.height = px(SHEET_H_MM);
         const ctx = canvas.getContext('2d');
 
-        // White background
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, cardW, cardH);
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        const nameFont = `800 ${nameFontPx}px Arial, sans-serif`;
-        const companyFont = `700 ${companyFontPx}px Arial, sans-serif`;
+        // Dashed cut lines at the top and bottom edge of the 70 x 70 label
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = Math.max(1, px(CUT_LINE_MM));
+        ctx.setLineDash([px(CUT_DASH_MM), px(CUT_GAP_MM)]);
+        [EXT_TOP_MM, EXT_TOP_MM + LABEL_MM].forEach((yMm) => {
+            ctx.beginPath();
+            ctx.moveTo(0, px(yMm));
+            ctx.lineTo(canvas.width, px(yMm));
+            ctx.stroke();
+        });
+        ctx.setLineDash([]);
 
-        // Measure text
-        ctx.font = nameFont;
-        const firstNameWidth = ctx.measureText(participant.first_name ?? '').width;
-        const lastNameWidth = ctx.measureText(participant.last_name ?? '').width;
-        const namesBlockWidth = Math.max(firstNameWidth, lastNameWidth);
+        // Everything below is drawn inside the 70 x 70 label area,
+        // so shift the origin down by the top extension.
+        ctx.save();
+        ctx.translate(0, px(EXT_TOP_MM));
 
-        ctx.font = companyFont;
-        const companyWidth = displayCompany ? ctx.measureText(displayCompany).width : 0;
+        // Positions mirror the on-screen layout (name, QR, company at the bottom)
+        const hasCompany = company.lines.length > 0;
+        const companyTop = LABEL_MM - PAD_MM - (hasCompany ? COMPANY_MB_MM : 0) - companyH;
+        const qrTop = hasCompany
+            ? companyTop - COMPANY_MT_MM - QR_MM
+            : LABEL_MM - PAD_MM - QR_MM;
+        const nameAreaTop = PAD_MM + GAP_MM;
+        const nameAreaBottom = qrTop - COMPANY_MT_MM;
+        const nameAreaH = nameAreaBottom - nameAreaTop;
 
-        const nameLineHeight = Math.round(nameFontPx * 1.05);
-        const namesBlockHeight = nameLineHeight * 2;
-        const rowHeight = Math.max(qrSize, namesBlockHeight);
-        const rowWidth = qrSize + rowGap + namesBlockWidth;
-
-        const companyLineHeight = Math.round(companyFontPx * 1.15);
-
-        // Column = row + company, centered as one block within the card
-        const colWidth = Math.max(rowWidth, companyWidth);
-        const colHeight =
-            rowHeight + (displayCompany ? columnGap + companyMarginTop + companyLineHeight : 0);
-
-        const colStartX = Math.round((cardW - colWidth) / 2);
-        const colStartY = Math.round((cardH - colHeight) / 2);
-
-        // Row (QR + names), centered horizontally within the column width
-        const rowX = colStartX + Math.round((colWidth - rowWidth) / 2);
-        const rowY = colStartY;
-
-        // QR — vertically centered within the row's height
-        const qrX = rowX;
-        const qrY = rowY + Math.round((rowHeight - qrSize) / 2);
+        // QR — centered below the name
         if (hiddenQrRef.current) {
-            ctx.drawImage(hiddenQrRef.current, qrX, qrY, qrSize, qrSize);
+            ctx.drawImage(
+                hiddenQrRef.current,
+                px((LABEL_MM - QR_MM) / 2),
+                px(qrTop),
+                px(QR_MM),
+                px(QR_MM)
+            );
         }
-
-        // Names — vertically centered within the row's height, right after the QR
-        const textX = qrX + qrSize + rowGap;
-        const namesY = rowY + Math.round((rowHeight - namesBlockHeight) / 2);
 
         ctx.fillStyle = '#1d1b16';
-        ctx.textBaseline = 'top';
-        ctx.font = nameFont;
-        ctx.fillText(participant.first_name ?? '', textX, namesY);
-        ctx.fillText(participant.last_name ?? '', textX, namesY + nameLineHeight);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
 
-        // Company — centered horizontally within the column, below the row
-        if (displayCompany) {
-            const companyX = colStartX + Math.round((colWidth - companyWidth) / 2);
-            const companyY = rowY + rowHeight + columnGap + companyMarginTop;
-            ctx.font = companyFont;
-            ctx.fillText(displayCompany, companyX, companyY);
+        // Name — vertically centered in its area
+        const nameBlockH = name.lines.length * name.size * NAME_LINE_H;
+        const nameStart = nameAreaTop + (nameAreaH - nameBlockH) / 2;
+        ctx.font = `${WEIGHT} ${px(name.size)}px ${FONT}`;
+        name.lines.forEach((line, i) => {
+            const y = nameStart + name.size * NAME_LINE_H * (i + 0.5);
+            ctx.fillText(line, canvas.width / 2, px(y));
+        });
+
+        // Company — regular weight, up to 2 lines, below the QR
+        if (hasCompany) {
+            ctx.font = `${W_COMPANY} ${px(company.size)}px ${FONT}`;
+            company.lines.forEach((line, i) => {
+                const y = companyTop + company.size * COMPANY_LINE_H * (i + 0.5);
+                ctx.fillText(line, canvas.width / 2, px(y));
+            });
         }
 
-        // Trigger download
-        const dataUrl = canvas.toDataURL('image/png');
+        ctx.restore();
+
         const link = document.createElement('a');
         const safeName = `${participant.first_name}-${participant.last_name}`
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '-');
-        link.href = dataUrl;
+        link.href = canvas.toDataURL('image/png');
         link.download = `${safeName}-qr.png`;
         link.click();
 
@@ -186,15 +304,17 @@ export default function ParticipantQR() {
         return <div className="px-8 py-8 text-[13.5px] text-[#A32D2D]">{error}</div>;
     }
 
-    // Company name is capped at 30 characters (including spaces); anything
-    // longer gets truncated with an ellipsis, matching the sticker design.
-    function truncateCompany(company) {
-        if (!company) return '';
-        if (company.length <= 30) return company;
-        return company.slice(0, 30).trimEnd() + '...';
-    }
+    // fontReady is referenced so the layout is recomputed once Montserrat loads
+    void fontReady;
+    const { name, company } = computeLayout(participant);
 
-    const displayCompany = truncateCompany(participant.company);
+    const cutLineStyle = {
+        position: 'absolute',
+        left: 0,
+        width: '100%',
+        height: 0,
+        borderTop: `${CUT_LINE_MM}mm dashed #000`,
+    };
 
     return (
         <div className="qr-page-root min-h-screen bg-[#f1efe8] flex flex-col items-center py-10 px-4">
@@ -227,8 +347,7 @@ export default function ParticipantQR() {
                 </div>
             </div>
 
-            {/* Hidden high-res QR source used only for the PNG export — excluded from print
-                so it can't be counted as a second page's content by the print engine. */}
+            {/* Hidden high-res QR source used only for the PNG export */}
             <div className="no-print" style={{ position: 'fixed', left: '-9999px', top: 0 }}>
                 <QRCodeCanvas
                     ref={hiddenQrRef}
@@ -246,62 +365,109 @@ export default function ParticipantQR() {
                 </div>
             )}
 
-            {/* Printable sticker card — sized to the loaded label stock (1.6in x 2.8in) */}
+            {/* Printable sheet — 70mm x 80mm (70mm label + 10mm blank below) */}
             <div
                 id="qr-print-card"
-                className="bg-white shadow-md flex items-center justify-center"
+                className="bg-white shadow-md"
                 style={{
-                    width: '2.8in',
-                    height: '1.6in',
-                    padding: '0.12in',
+                    position: 'relative',
+                    width: `${SHEET_W_MM}mm`,
+                    height: `${SHEET_H_MM}mm`,
                     boxSizing: 'border-box',
-                    gap: '0.16in',
+                    overflow: 'hidden',
+                    fontFamily: FONT,
+                    color: '#1d1b16',
                 }}
             >
-                <div className="flex flex-col items-center gap-[8px]">
-                    <div className="flex" style={{ gap: '0.2cm' }}>
-                        <div style={{ flexShrink: 0, paddingTop: '8px' }}>
-                            <QRCodeSVG
-                                value={participant.ticket_token}
-                                size={128}
-                                level="M"
-                                includeMargin={false}
-                                style={{ width: '1.8cm', height: '1.8cm' }}
-                            />
-                        </div>
+                {/* Cut lines at the top and bottom edge of the label */}
+                <div style={{ ...cutLineStyle, top: `${EXT_TOP_MM}mm` }} />
+                <div style={{ ...cutLineStyle, top: `${EXT_TOP_MM + LABEL_MM}mm` }} />
 
-                        <div className="flex flex-col justify-center min-w-0">
-                            <p
-                                className="font-extrabold text-[#1d1b16] leading-[1.05]"
-                                style={{ fontSize: '1cm' }}
+                {/* The actual 70 x 70 mm label */}
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: `${EXT_TOP_MM}mm`,
+                        left: 0,
+                        width: `${LABEL_MM}mm`,
+                        height: `${LABEL_MM}mm`,
+                        padding: `${PAD_MM}mm`,
+                        boxSizing: 'border-box',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        overflow: 'hidden',
+                    }}
+                >
+                    {/* Name — font size chosen automatically to fit */}
+                    <div
+                        style={{
+                            flex: 1,
+                            minHeight: 0,
+                            width: '100%',
+                            // marginTop: `${GAP_MM}mm`,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                        }}
+                    >
+                        {name.lines.map((line, i) => (
+                            <div
+                                key={i}
+                                style={{
+                                    fontSize: `${name.size}mm`,
+                                    lineHeight: NAME_LINE_H,
+                                    fontWeight: WEIGHT,
+                                    whiteSpace: 'nowrap',
+                                }}
                             >
-                                {participant.first_name}
-                            </p>
-                            <p
-                                className="font-extrabold text-[#1d1b16] leading-[1.05]"
-                                style={{ fontSize: '1cm' }}
-                            >
-                                {participant.last_name}
-                            </p>
-                        </div>
+                                {line}
+                            </div>
+                        ))}
                     </div>
 
-                    <div>
-                        {displayCompany && (
-                            <p
-                                className="font-bold text-[#1d1b16] leading-[1.15]"
-                                style={{ fontSize: '0.32cm', marginTop: '0.12cm' }}
-                            >
-                                {displayCompany}
-                            </p>
-                        )}
-                    </div>
+                    <QRCodeSVG
+                        value={participant.ticket_token}
+                        size={128}
+                        level="M"
+                        includeMargin={false}
+                        style={{ width: `${QR_MM}mm`, height: `${QR_MM}mm`, flexShrink: 0, marginTop: `${COMPANY_MT_MM}mm` }}
+                    />
+
+                    {company.lines.length > 0 && (
+                        <div
+                            style={{
+                                marginTop: `${COMPANY_MT_MM}mm`,
+                                marginBottom: `${COMPANY_MB_MM}mm`,
+                                width: '100%',
+                                textAlign: 'center',
+                                flexShrink: 0,
+                            }}
+                        >
+                            {company.lines.map((line, i) => (
+                                <div
+                                    key={i}
+                                    style={{
+                                        fontSize: `${company.size}mm`,
+                                        lineHeight: COMPANY_LINE_H,
+                                        fontWeight: W_COMPANY,
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                >
+                                    {line}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                 </div>
             </div>
 
             <style>{`
                 @page {
-                    size: 2.8in 1.6in;
+                    size: ${SHEET_W_MM}mm ${SHEET_H_MM}mm;
                     margin: 0;
                 }
                 @media print {
@@ -310,26 +476,27 @@ export default function ParticipantQR() {
                         background: white !important;
                         margin: 0 !important;
                         padding: 0 !important;
-                        width: 2.8in;
-                        height: 1.6in;
+                        width: ${SHEET_W_MM}mm;
+                        height: ${SHEET_H_MM}mm;
                     }
                     .qr-page-root {
                         min-height: 0 !important;
-                        height: 1.6in !important;
-                        width: 2.8in !important;
+                        height: ${SHEET_H_MM}mm !important;
+                        width: ${SHEET_W_MM}mm !important;
                         padding: 0 !important;
                         margin: 0 !important;
+                        display: block !important;
+                        background: white !important;
                         overflow: hidden;
                     }
                     #qr-print-card {
                         box-shadow: none !important;
                         margin: 0 !important;
+                        break-inside: avoid;
                     }
                 }
             `}</style>
 
-            {/* Confirm the label actually printed — browsers give no way to
-                detect this automatically, so we ask directly. */}
             {confirmPrintOpen && (
                 <div
                     className="no-print fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4"
