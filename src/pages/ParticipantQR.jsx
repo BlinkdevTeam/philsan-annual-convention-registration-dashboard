@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabaseClient';
 // and a 10 mm blank extension below it. Cut lines mark the label edges.
 const LABEL_MM = 70;
 const EXT_TOP_MM = 0;                         // blank extension above the label
-const EXT_BOTTOM_MM = 10;                     // blank extension below the label
+const EXT_BOTTOM_MM = 0;                     // blank extension below the label
 const SHEET_W_MM = LABEL_MM;
 const SHEET_H_MM = EXT_TOP_MM + LABEL_MM + EXT_BOTTOM_MM;
 
