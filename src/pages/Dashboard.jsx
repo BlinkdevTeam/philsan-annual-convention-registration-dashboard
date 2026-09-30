@@ -4,8 +4,8 @@ import { useParticipants } from '../lib/useParticipants';
 import TransferModal from '../components/TransferModal';
 
 const STATUS_TABS = [
-    { value: 'pending',  label: 'Pending' },
     { value: 'approved', label: 'Approved' },
+    { value: 'pending',  label: 'Pending' },
     { value: 'rejected', label: 'Rejected' },
     { value: 'canceled', label: 'Canceled' },
     { value: 'all',      label: 'All' },
@@ -28,7 +28,7 @@ function fullName(p) {
 
 export default function Dashboard() {
     const navigate = useNavigate();
-    const [statusFilter, setStatusFilter] = useState('pending');
+    const [statusFilter, setStatusFilter] = useState('approved');
     const [search, setSearch] = useState('');
     const [transferTarget, setTransferTarget] = useState(null);
     const [actionError, setActionError] = useState('');
