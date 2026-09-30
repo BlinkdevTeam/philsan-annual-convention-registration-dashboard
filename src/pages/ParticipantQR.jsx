@@ -93,7 +93,7 @@ function wrapWords(text, sizeMm, maxWidthMm, weight = WEIGHT) {
 // First and last name are separate blocks; each wraps on its own.
 // Picks the largest font size where everything fits inside the given box.
 function fitName(paragraphs, maxWidthMm, maxHeightMm) {
-    const parts = paragraphs.map((p) => (p ?? '').trim()).filter(Boolean);
+    const parts = paragraphs.map((p) => (p ?? '').trim().toUpperCase()).filter(Boolean);
     if (parts.length === 0) return { size: NAME_MAX_MM, lines: [] };
 
     let last = null;
