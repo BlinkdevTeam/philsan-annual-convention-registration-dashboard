@@ -111,7 +111,7 @@ function fitName(paragraphs, maxWidthMm, maxHeightMm) {
 // Full company name (never truncated). Wraps onto up to COMPANY_MAX_LINES lines
 // and uses the largest size at which it fits.
 function fitCompany(text, maxWidthMm) {
-    const clean = (text ?? '').trim().replace(/\s+/g, ' ');
+    const clean = (text ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
     if (!clean) return { size: 0, lines: [] };
     let last = null;
     for (let size = COMPANY_MAX_MM; size >= COMPANY_MIN_MM; size -= 0.1) {
