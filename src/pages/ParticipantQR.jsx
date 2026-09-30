@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo  } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { supabase } from '../lib/supabaseClient';
@@ -40,6 +40,10 @@ const FONT = "'Montserrat', Arial, Helvetica, sans-serif";
 const WEIGHT = 700;            // name: Montserrat Bold
 const W_COMPANY = 400;         // company: Montserrat Regular
 const COMPANY_MAX_LINES = 2;   // company wraps onto up to 2 lines
+
+// Souvenir badge shown in the center of the QR code
+const BADGE_W = 0.12;   // badge width as a fraction of the QR size
+const BADGE_H = 0.12;   // square, since it holds a single letter
 
 // Loads Montserrat Bold + Regular from /public/fonts once. Falls back to Arial if missing.
 let fontPromise = null;
@@ -129,6 +133,37 @@ function computeLayout(participant) {
     return { name, company, companyH, nameMaxH };
 }
 
+function souvenirLabelFor(value) {
+    const v = String(value ?? '').trim().toLowerCase();
+    if (v.includes('digital')) return 'D';
+    if (v.includes('print')) return 'P';
+    return ''; // "no" or empty -> nothing
+}
+
+// Renders the letter to a small white square PNG so QRCode can excavate the modules behind it
+function makeBadge(label) {
+    const S = 160; // square canvas
+    const c = document.createElement('canvas');
+    c.width = S;
+    c.height = S;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, S, S);
+
+    const size = Math.min(S * 0.9, (S - 30) / measureEm(label));
+    ctx.fillStyle = '#000000';
+    ctx.font = `${WEIGHT} ${size}px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, S / 2, S / 2 + size * 0.04);
+    return c.toDataURL('image/png');
+}
+
+function badgeSettings(src, qrSize) {
+    if (!src) return undefined;
+    return { src, width: qrSize * BADGE_W, height: qrSize * BADGE_H, excavate: true };
+}
+
 export default function ParticipantQR() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -140,6 +175,17 @@ export default function ParticipantQR() {
     const [downloading, setDownloading] = useState(false);
     const [confirmPrintOpen, setConfirmPrintOpen] = useState(false);
     const [fontReady, setFontReady] = useState(false);
+
+    const souvenirLabel = useMemo(
+    () => souvenirLabelFor(participant?.souvenir),
+    [participant]
+);
+
+// fontReady is a dependency so the badge is redrawn once Montserrat has loaded
+const badgeSrc = useMemo(
+    () => (souvenirLabel ? makeBadge(souvenirLabel) : null),
+    [souvenirLabel, fontReady]
+);
 
     // Load Montserrat, then re-render so the auto-fit re-measures with it.
     useEffect(() => {
@@ -349,13 +395,14 @@ export default function ParticipantQR() {
 
             {/* Hidden high-res QR source used only for the PNG export */}
             <div className="no-print" style={{ position: 'fixed', left: '-9999px', top: 0 }}>
-                <QRCodeCanvas
-                    ref={hiddenQrRef}
-                    value={participant.ticket_token}
-                    size={512}
-                    level="M"
-                    includeMargin={false}
-                />
+               <QRCodeCanvas
+    ref={hiddenQrRef}
+    value={participant.ticket_token}
+    size={512}
+    level={badgeSrc ? 'H' : 'M'}
+    includeMargin={false}
+    imageSettings={badgeSettings(badgeSrc, 512)}
+/>
             </div>
 
             {participant.reg_status !== 'approved' && (
@@ -429,12 +476,13 @@ export default function ParticipantQR() {
                     </div>
 
                     <QRCodeSVG
-                        value={participant.ticket_token}
-                        size={128}
-                        level="M"
-                        includeMargin={false}
-                        style={{ width: `${QR_MM}mm`, height: `${QR_MM}mm`, flexShrink: 0, marginTop: `${COMPANY_MT_MM}mm` }}
-                    />
+    value={participant.ticket_token}
+    size={128}
+    level={badgeSrc ? 'H' : 'M'}
+    includeMargin={false}
+    imageSettings={badgeSettings(badgeSrc, 128)}
+    style={{ width: `${QR_MM}mm`, height: `${QR_MM}mm`, flexShrink: 0, marginTop: `${COMPANY_MT_MM}mm` }}
+/>
 
                     {company.lines.length > 0 && (
                         <div
