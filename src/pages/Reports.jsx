@@ -311,6 +311,9 @@ function CpdFormsCard() {
         .upsert({ id: 'cpd', settings, updated_at: new Date().toISOString() });
       const fresh = await mod.fetchCpdPeople(supabase); // latest data
       setPeople(fresh);
+      // A  = Registration Sheet (all approved with license)
+      // B  = Attendance Sheet   (only those scanned at the event)
+      // B2 = Attendance Sheet format, but listing all approved with license (same list as A)
       const file = kind === 'A' ? 'cpdd-12-a-template.docx' : 'cpdd-12-b-template.docx';
       const res = await fetch(`/reports/${file}`);
       if (!res.ok) throw new Error(`Missing file: /reports/${file}`);
@@ -318,13 +321,17 @@ function CpdFormsCard() {
       const bytes =
         kind === 'A'
           ? mod.buildRegistrationSheet(template, fresh.registered, settings)
-          : mod.buildAttendanceSheet(template, fresh.attended, settings);
+          : mod.buildAttendanceSheet(template, kind === 'B2' ? fresh.registered : fresh.attended, settings);
       const blob = new Blob([bytes], {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = kind === 'A' ? 'CPDD-12-A Registration Sheet.docx' : 'CPDD-12-B Attendance Sheet.docx';
+      a.download = {
+        A: 'CPDD-12-A Registration Sheet.docx',
+        B: 'CPDD-12-B Attendance Sheet.docx',
+        B2: 'CPDD-12-B.2 Attendance Sheet (All Registered).docx',
+      }[kind];
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 10000);
     } catch (err) {
@@ -344,7 +351,8 @@ function CpdFormsCard() {
           <h2 className="font-semibold text-gray-800">PRC CPD forms (Word)</h2>
           <p className="text-sm text-gray-500 mt-1 max-w-xl">
             Official CPDD-12-A Registration Sheet and CPDD-12-B Attendance Sheet, filled with participants who gave a
-            PRC license number, sorted by last name. Signature and expiry date columns are left blank.
+            PRC license number, sorted by last name. CPDD-12-B lists only checked-in attendees; CPDD-12-B.2 uses the
+            same format but lists everyone on the Registration Sheet. Signature and expiry date columns are left blank.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -361,6 +369,13 @@ function CpdFormsCard() {
             className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white bg-[#1F773A] hover:opacity-90 disabled:opacity-50"
           >
             {busy === 'B' ? 'Creating…' : 'CPDD-12-B Attendance Sheet'}
+          </button>
+          <button
+            onClick={() => download('B2')}
+            disabled={!people || !!busy}
+            className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white bg-[#1F773A] hover:opacity-90 disabled:opacity-50"
+          >
+            {busy === 'B2' ? 'Creating…' : 'CPDD-12-B.2 Attendance Sheet (All Registered)'}
           </button>
         </div>
       </div>
