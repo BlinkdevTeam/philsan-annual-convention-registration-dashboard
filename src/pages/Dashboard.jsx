@@ -22,6 +22,10 @@ function canTransfer(status) {
     return status === 'pending' || status === 'approved';
 }
 
+function fullName(p) {
+    return `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
+}
+
 export default function Dashboard() {
     const navigate = useNavigate();
     const [statusFilter, setStatusFilter] = useState('pending');
@@ -37,10 +41,17 @@ export default function Dashboard() {
     } = useParticipants(statusFilter);
 
     const filtered = useMemo(() => {
-        if (!search.trim()) return participants;
         const q = search.trim().toLowerCase();
-        return participants.filter((p) =>
-            `${p.first_name} ${p.last_name} ${p.email} ${p.company}`.toLowerCase().includes(q)
+
+        const list = q
+            ? participants.filter((p) =>
+                `${p.first_name} ${p.last_name} ${p.email} ${p.company}`.toLowerCase().includes(q)
+            )
+            : participants;
+
+        // Alphabetical A → Z by the name exactly as displayed ("First Last")
+        return [...list].sort((a, b) =>
+            fullName(a).localeCompare(fullName(b), undefined, { sensitivity: 'base' })
         );
     }, [participants, search]);
 
@@ -97,6 +108,7 @@ export default function Dashboard() {
                         <table className="w-full text-[13.5px]">
                             <thead>
                                 <tr className="bg-[#f7f6f1] text-left text-[#344054]">
+                                    <th className="px-4 py-3 font-medium w-12">#</th>
                                     <th className="px-4 py-3 font-medium">Name</th>
                                     <th className="px-4 py-3 font-medium">Email</th>
                                     <th className="px-4 py-3 font-medium">Company</th>
@@ -108,10 +120,11 @@ export default function Dashboard() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.map((p) => (
+                                {filtered.map((p, i) => (
                                     <tr key={p.id}
                                         onClick={() => navigate(`/participants/${p.id}`)}
                                         className="border-t border-[#e5e3da] hover:bg-[#f7f6f1] cursor-pointer transition-colors">
+                                        <td className="px-4 py-3 text-[#5f5e5a]">{i + 1}</td>
                                         <td className="px-4 py-3 font-medium text-[#16572A]">{p.first_name} {p.last_name}</td>
                                         <td className="px-4 py-3 text-[#5f5e5a]">{p.email}</td>
                                         <td className="px-4 py-3 text-[#5f5e5a]">{p.company}</td>
@@ -142,12 +155,12 @@ export default function Dashboard() {
 
                     {/* Mobile cards */}
                     <div className="lg:hidden flex flex-col gap-3">
-                        {filtered.map((p) => (
+                        {filtered.map((p, i) => (
                             <div key={p.id}
                                 onClick={() => navigate(`/participants/${p.id}`)}
                                 className="bg-white border border-[#e5e3da] rounded-lg p-4 cursor-pointer active:bg-[#f7f6f1]">
                                 <div className="flex items-start justify-between mb-2">
-                                    <p className="text-[14px] font-bold text-[#16572A]">{p.first_name} {p.last_name}</p>
+                                    <p className="text-[14px] font-bold text-[#16572A]">{i + 1}. {p.first_name} {p.last_name}</p>
                                     <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_BADGE[p.reg_status] ?? 'bg-[#f1efe8] text-[#5f5e5a]'}`}>
                                         {p.reg_status}
                                     </span>
