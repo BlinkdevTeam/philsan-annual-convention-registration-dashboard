@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import DownloadAllQR from '../components/DownloadAllQR';
 
 function tally(rows, key) {
     const counts = {};
@@ -289,7 +290,13 @@ export default function Attendance() {
     return (
         <div className="p-6 flex flex-col gap-6">
             <div>
-                <h1 className="text-[22px] font-bold text-[#1d1b16]">Attendance</h1>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h1 className="...">Attendance</h1>
+                    <div  className="flex gap-[20px]">
+                        <DownloadAllQR />
+                        <DownloadAllQR mode="unprinted" />
+                    </div>
+                </div>
                 <p className="text-[13px] text-[#5f5e5a] mt-1">
                     Live feed of participants scanned in at the entrance
                 </p>
