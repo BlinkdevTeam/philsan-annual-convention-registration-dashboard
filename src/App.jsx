@@ -22,6 +22,12 @@ import CertificatePage from './pages/CertificatePage';
 import VerifyPage from './pages/VerifyPage';
 import SymposiumDashboard from './pages/SymposiumDashboard';
 
+
+import SymposiumPortal from './pages/symposium/SymposiumPortal';
+import SymposiumQuiz from './pages/symposium/SymposiumQuiz';
+import SymposiumSurvey from './pages/symposium/SymposiumSurvey';
+import SymposiumCertificate from './pages/symposium/SymposiumCertificate';
+
 function AuthOnly({ children }) {
     return (
         <AuthProvider>
@@ -75,8 +81,15 @@ export default function App() {
                 <Route path="/survey"                   element={<Navigate to="/portal" replace />} />
                 <Route path="/quiz"                     element={<Navigate to="/portal" replace />} />
 
-                {/* for symposium */}
+                {/* for symposium dashoard */}
                 <Route path="/symposium" element={<AuthOnly><SymposiumDashboard /></AuthOnly>} />
+
+                {/* for symposium Quiz and survey and certificate */}
+                <Route path="/pet-symposium"                    element={<SymposiumPortal />} />
+                <Route path="/pet-symposium/quiz"               element={<SymposiumQuiz />} />
+                <Route path="/pet-symposium/survey"             element={<SymposiumSurvey />} />
+                <Route path="/pet-symposium/certificate/:token" element={<SymposiumCertificate />} />
+
             </Routes>
         </BrowserRouter>
     );

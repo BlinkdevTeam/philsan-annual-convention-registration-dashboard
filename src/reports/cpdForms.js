@@ -37,13 +37,14 @@ export function licenseWarning(lic) {
   return '';
 }
 
-const fullName = (p) =>
-  [p.first_name, p.middle_name, p.last_name]
-    .map((s) => (s || '').trim())
-    .filter(Boolean)
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .toUpperCase();
+const clean = (s) => (s || '').trim().replace(/\s+/g, ' ').toUpperCase();
+
+// Surname first, for the alphabetical PRC lists: "DELA CRUZ, JUAN SANTOS"
+const fullName = (p) => {
+  const last = clean(p.last_name);
+  const given = [clean(p.first_name), clean(p.middle_name)].filter(Boolean).join(' ');
+  return last && given ? `${last}, ${given}` : last || given;
+};
 
 export async function fetchCpdPeople(supabase) {
   const [participants, attendance] = await Promise.all([
@@ -56,10 +57,12 @@ export async function fetchCpdPeople(supabase) {
     .filter((p) => p.reg_status === 'approved')
     .map((p) => ({ ...p, license: cleanLicense(p.agri_license), attended: attended.has(p.id) }))
     .filter((p) => p.license)
+    // A–Z by surname, then first name, then middle name (ignores case, extra spaces and accents)
     .sort(
       (a, b) =>
-        (a.last_name || '').localeCompare(b.last_name || '', 'en', { sensitivity: 'base' }) ||
-        (a.first_name || '').localeCompare(b.first_name || '', 'en', { sensitivity: 'base' })
+        clean(a.last_name).localeCompare(clean(b.last_name), 'en', { sensitivity: 'base' }) ||
+        clean(a.first_name).localeCompare(clean(b.first_name), 'en', { sensitivity: 'base' }) ||
+        clean(a.middle_name).localeCompare(clean(b.middle_name), 'en', { sensitivity: 'base' })
     );
 
   return {
