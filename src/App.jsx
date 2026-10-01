@@ -20,6 +20,7 @@ import SurveyPage from './pages/SurveyPage';
 import QuizPage from './pages/QuizPage';
 import CertificatePage from './pages/CertificatePage';
 import VerifyPage from './pages/VerifyPage';
+import SymposiumDashboard from './pages/SymposiumDashboard';
 
 function AuthOnly({ children }) {
     return (
@@ -73,6 +74,9 @@ export default function App() {
                 {/* Old links from before the portal */}
                 <Route path="/survey"                   element={<Navigate to="/portal" replace />} />
                 <Route path="/quiz"                     element={<Navigate to="/portal" replace />} />
+
+                {/* for symposium */}
+                <Route path="/symposium" element={<AuthOnly><SymposiumDashboard /></AuthOnly>} />
             </Routes>
         </BrowserRouter>
     );
