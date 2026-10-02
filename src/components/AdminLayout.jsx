@@ -3,14 +3,15 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 
 const NAV = [
-    { to: '/',               label: 'Overview',       icon: '📊', end: true },
-    { to: '/participants',   label: 'Participants',   icon: '👥' },
-    { to: '/sponsors',       label: 'Sponsors',       icon: '🏢' },
-    { to: '/attendance',     label: 'Attendance',     icon: '🎫' },
-    { to: '/walk-in',        label: 'Walk-In',        icon: '📝' },
-    { to: '/survey-results', label: 'Survey Results', icon: '📋' },
-    { to: '/quiz-results',   label: 'Quiz Results',   icon: '🧠' },
-    { to: '/reports', label: 'Reports', icon: '📄' },
+    { to: '/',                  label: 'Overview',          icon: '📊', end: true },
+    { to: '/participants',      label: 'Participants',      icon: '👥' },
+    { to: '/sponsors',          label: 'Sponsors',          icon: '🏢' },
+    { to: '/attendance',        label: 'Attendance',        icon: '🎫' },
+    { to: '/scanner-operators', label: 'Scanner Operators', icon: '📱' },
+    { to: '/walk-in',           label: 'Walk-In',           icon: '📝' },
+    { to: '/survey-results',    label: 'Survey Results',    icon: '📋' },
+    { to: '/quiz-results',      label: 'Quiz Results',      icon: '🧠' },
+    { to: '/reports',           label: 'Reports',           icon: '📄' },
 ];
 
 export default function AdminLayout({ children }) {

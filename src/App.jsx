@@ -10,7 +10,7 @@ import ParticipantDetail from './pages/ParticipantDetail';
 import Attendance from './pages/Attendance';
 import WalkInRegistration from './pages/WalkInRegistration';
 import ParticipantQR from './pages/ParticipantQR';
-import SponsorLogin from './pages/SponsorLogin';
+import SponsorLogin from './pages/Sponsorlogin';
 import SponsorStatus from './pages/SponsorStatus';
 import SurveyResults from './pages/SurveyResults';
 import QuizResults from './pages/QuizResults';
@@ -27,6 +27,8 @@ import SymposiumPortal from './pages/symposium/SymposiumPortal';
 import SymposiumQuiz from './pages/symposium/SymposiumQuiz';
 import SymposiumSurvey from './pages/symposium/SymposiumSurvey';
 import SymposiumCertificate from './pages/symposium/SymposiumCertificate';
+
+import ScannerOperators from './pages/ScannerOperators';
 
 function AuthOnly({ children }) {
     return (
@@ -89,6 +91,8 @@ export default function App() {
                 <Route path="/pet-symposium/quiz"               element={<SymposiumQuiz />} />
                 <Route path="/pet-symposium/survey"             element={<SymposiumSurvey />} />
                 <Route path="/pet-symposium/certificate/:token" element={<SymposiumCertificate />} />
+
+                <Route path="/scanner-operators" element={<AdminPages><ScannerOperators /></AdminPages>} />
 
             </Routes>
         </BrowserRouter>
