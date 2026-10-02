@@ -10,7 +10,7 @@ import ParticipantDetail from './pages/ParticipantDetail';
 import Attendance from './pages/Attendance';
 import WalkInRegistration from './pages/WalkInRegistration';
 import ParticipantQR from './pages/ParticipantQR';
-import SponsorLogin from './pages/Sponsorlogin';
+import SponsorLogin from './pages/SponsorLogin';
 import SponsorStatus from './pages/SponsorStatus';
 import SurveyResults from './pages/SurveyResults';
 import QuizResults from './pages/QuizResults';
