@@ -123,7 +123,7 @@ export default function SymposiumSurvey() {
                   </p>
 
                   {q.type === 'choice' ? (
-                    <div className="mt-3 grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+                    <div className={`mt-3 grid ${q.options.length === 5 ? 'grid-cols-5' : 'grid-cols-2'} sm:flex sm:flex-wrap gap-2`}>
                       {q.options.map((opt) => {
                         const selected = answers[q.key] === opt.value;
                         return (

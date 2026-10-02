@@ -36,6 +36,11 @@ const LIKELIHOOD = [
     { value: 'Unlikely', label: 'Unlikely' },
 ];
 
+const SCORE_1_TO_5 = ['1', '2', '3', '4', '5'].map((n) => ({ value: n, label: n }));
+
+const SPEAKER_NOTE =
+    'Please rate the speaker on a scale of 1 to 5, where 1 is the lowest and 5 is the highest rating.';
+
 export const SURVEY_QUESTIONS = [
     {
         key: 'overall_experience',
@@ -102,7 +107,55 @@ export const SURVEY_QUESTIONS = [
     {
         key: 'additional_comments',
         section: "We'd love to hear your feedback.",
-        label: 'Do you have any additional comments, suggestions, or feedback you would like to share?',
+        label: "Do you have any additional comments, suggestions, or feedback you'd like to share?",
         type: 'text',
+        optional: true,
+    },
+
+    // ── Speaker evaluations ──
+    {
+        key: 'saebey_knowledge',
+        section: 'Speaker Evaluation - Ms. Ratchada Saebey',
+        sectionNote: SPEAKER_NOTE,
+        label: "Speaker's knowledge of the topic",
+        type: 'choice',
+        options: SCORE_1_TO_5,
+    },
+    {
+        key: 'saebey_delivery',
+        section: 'Speaker Evaluation - Ms. Ratchada Saebey',
+        label: "Speaker's presentation and delivery",
+        type: 'choice',
+        options: SCORE_1_TO_5,
+    },
+    {
+        key: 'janist_knowledge',
+        section: 'Speaker Evaluation - Ms. Nattanan Janist',
+        sectionNote: SPEAKER_NOTE,
+        label: "Speaker's knowledge of the topic",
+        type: 'choice',
+        options: SCORE_1_TO_5,
+    },
+    {
+        key: 'janist_delivery',
+        section: 'Speaker Evaluation - Ms. Nattanan Janist',
+        label: "Speaker's presentation and delivery",
+        type: 'choice',
+        options: SCORE_1_TO_5,
+    },
+    {
+        key: 'rodey_knowledge',
+        section: 'Speaker Evaluation - Mr. Michael Rodey',
+        sectionNote: SPEAKER_NOTE,
+        label: "Speaker's knowledge of the topic",
+        type: 'choice',
+        options: SCORE_1_TO_5,
+    },
+    {
+        key: 'rodey_delivery',
+        section: 'Speaker Evaluation - Mr. Michael Rodey',
+        label: "Speaker's presentation and delivery",
+        type: 'choice',
+        options: SCORE_1_TO_5,
     },
 ];

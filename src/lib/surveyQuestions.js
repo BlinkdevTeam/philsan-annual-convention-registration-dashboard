@@ -1,5 +1,7 @@
 // Shared by SurveyPage.jsx (participant form) and SurveyResults.jsx (admin).
-// Keys must match the columns in public.survey_responses.
+// Keys in SURVEY_QUESTIONS must match the columns in public.survey_responses.
+// Speaker ratings and the Learning Session choice are saved in the
+// extra_answers column instead (see survey_speaker_ratings.sql).
 
 export const SURVEY_TITLE = 'Evaluation Form: 39th PHILSAN Annual Convention';
 export const SURVEY_INTRO =
@@ -12,6 +14,7 @@ const RATING = [
   { value: 'poor', label: 'Poor' },
 ];
 
+// ── The original 10 questions (unchanged; used by SurveyResults.jsx) ──
 export const SURVEY_QUESTIONS = [
   {
     key: 'overall_experience',
@@ -90,6 +93,79 @@ export const SURVEY_QUESTIONS = [
     type: 'text',
   },
 ];
+
+// ── Speaker evaluations (saved in extra_answers) ──
+// `showIf: { key, value }` shows a question only when another answer matches.
+// Hidden questions are not required and are not saved.
+
+const SCORE_1_TO_5 = ['1', '2', '3', '4', '5'].map((n) => ({ value: n, label: n }));
+
+const SPEAKER_NOTE =
+  'Please rate the speaker on a scale of 1 to 5, where 1 is the lowest and 5 is the highest rating.';
+
+// Two rating questions for one speaker
+function speaker(key, sectionTitle, showIf) {
+  const section = `Speaker Evaluation - ${sectionTitle}`;
+  return [
+    {
+      key: `${key}_knowledge`,
+      section,
+      sectionNote: SPEAKER_NOTE,
+      label: "Speaker's knowledge of the topic",
+      type: 'choice',
+      options: SCORE_1_TO_5,
+      ...(showIf && { showIf }),
+    },
+    {
+      key: `${key}_delivery`,
+      section,
+      label: "Speaker's presentation and delivery",
+      type: 'choice',
+      options: SCORE_1_TO_5,
+      ...(showIf && { showIf }),
+    },
+  ];
+}
+
+const session = (n) => ({ key: 'learning_session', value: `Learning Session ${n}` });
+
+export const SPEAKER_QUESTIONS = [
+  // Main speakers (everyone rates these)
+  ...speaker('cheng', 'Atty. Kenneth Cheng'),
+  ...speaker('sulabo', 'Dr. Rommel Sulabo'),
+  ...speaker('delbarrio', 'Dr. Arnel Del Barrio'),
+  ...speaker('bautista', 'Dr. Karen Bautista'),
+
+  // Learning Session choice
+  {
+    key: 'learning_session',
+    section: 'Learning Session',
+    label: 'Which Learning Session did you attend?',
+    type: 'choice',
+    options: [1, 2, 3].map((n) => ({ value: `Learning Session ${n}`, label: `Learning Session ${n}` })),
+  },
+
+  // Learning Session 1
+  ...speaker('ls1_sancheztorres', 'Learning Session 1: David Sanchez Torres', session(1)),
+  ...speaker('ls1_liu', 'Learning Session 1: Kevin Liu', session(1)),
+  ...speaker('ls1_cordobalucio', 'Learning Session 1: Xaviere Cordoba Lucio', session(1)),
+  ...speaker('ls1_kim', 'Learning Session 1: Jae Cheol Kim', session(1)),
+
+  // Learning Session 2
+  ...speaker('ls2_makhanon', 'Learning Session 2: Metta Makhanon', session(2)),
+  ...speaker('ls2_reyes', 'Learning Session 2: Rhona Nina Reyes', session(2)),
+  ...speaker('ls2_celi', 'Learning Session 2: Pietro Celi', session(2)),
+  ...speaker('ls2_lemmen', 'Learning Session 2: Johannes Jacobus Lemmen', session(2)),
+
+  // Learning Session 3
+  ...speaker('ls3_mariquilla', 'Learning Session 3: Jocelyn Mariquilla', session(3)),
+  ...speaker('ls3_nuntawan', 'Learning Session 3: Suparlark Nuntawan Na Ayudhya', session(3)),
+  ...speaker('ls3_villacorta', 'Learning Session 3: Concepcion Villacorta', session(3)),
+  ...speaker('ls3_jayaraman', 'Learning Session 3: Balachandar Jayaraman', session(3)),
+];
+
+// Everything the participant sees on the survey form, in order
+export const SURVEY_FORM_QUESTIONS = [...SURVEY_QUESTIONS, ...SPEAKER_QUESTIONS];
 
 export const labelFor = (question, value) =>
   question.options?.find((o) => o.value === value)?.label ?? value;

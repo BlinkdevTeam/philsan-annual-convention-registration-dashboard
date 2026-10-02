@@ -22,6 +22,8 @@ export default function ScannerOperators() {
   const [newPassword, setNewPassword] = useState('');
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [pwFor, setPwFor] = useState(null); // account id whose password box is open
+  const [pwValue, setPwValue] = useState('');
 
   async function load() {
     setLoading(true);
@@ -110,6 +112,37 @@ export default function ScannerOperators() {
       load();
     }
     setCreating(false);
+  }
+
+  async function changePassword(account) {
+    if (pwValue.length < 6) {
+      setMessage({ type: 'error', text: 'The password must be at least 6 characters.' });
+      return;
+    }
+    setBusyId(account.id);
+    setMessage(null);
+    const { data, error } = await supabase.functions.invoke('create-scanner-account', {
+      body: { action: 'set_password', user_id: account.id, password: pwValue },
+    });
+    let errorText = null;
+    if (error) {
+      try {
+        const detail = await error.context?.json();
+        errorText = detail?.error || error.message;
+      } catch {
+        errorText = error.message;
+      }
+    } else if (!data?.ok) {
+      errorText = data?.error || 'Could not change the password.';
+    }
+    if (errorText) {
+      setMessage({ type: 'error', text: errorText });
+    } else {
+      setMessage({ type: 'ok', text: `Password changed for ${account.email}.` });
+      setPwFor(null);
+      setPwValue('');
+    }
+    setBusyId(null);
   }
 
   const filtered = useMemo(() => {
@@ -255,14 +288,47 @@ export default function ScannerOperators() {
                   </td>
                   <td className="px-4 py-3 text-gray-600">{formatDate(a.last_sign_in_at)}</td>
                   <td className="px-4 py-3 text-right">
-                    {a.is_scanner ? (
-                      <button
-                        onClick={() => removeScanner(a)}
-                        disabled={busy}
-                        className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                      >
-                        {busy ? 'Working…' : 'Remove'}
-                      </button>
+                    {a.is_scanner && pwFor === a.id ? (
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <input
+                          type="text"
+                          autoFocus
+                          value={pwValue}
+                          onChange={(e) => setPwValue(e.target.value)}
+                          placeholder="New password (6+ characters)"
+                          className="w-48 rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[#1F773A]"
+                        />
+                        <button
+                          onClick={() => changePassword(a)}
+                          disabled={busy}
+                          className="rounded-lg bg-[#1F773A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#16572A] disabled:opacity-50"
+                        >
+                          {busy ? 'Saving…' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => { setPwFor(null); setPwValue(''); }}
+                          className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : a.is_scanner ? (
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <button
+                          onClick={() => { setPwFor(a.id); setPwValue(''); setMessage(null); }}
+                          disabled={busy}
+                          className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          Change password
+                        </button>
+                        <button
+                          onClick={() => removeScanner(a)}
+                          disabled={busy}
+                          className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          {busy ? 'Working…' : 'Remove'}
+                        </button>
+                      </div>
                     ) : (
                       <button
                         onClick={() => addScanner(a)}

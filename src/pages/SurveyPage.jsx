@@ -2,10 +2,14 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { getPortalEmail, clearPortalEmail } from '../lib/portal';
-import { SURVEY_QUESTIONS, SURVEY_TITLE, SURVEY_INTRO } from '../lib/surveyQuestions';
+// The form shows the original 10 questions plus the speaker evaluations
+import { SURVEY_FORM_QUESTIONS as SURVEY_QUESTIONS, SURVEY_TITLE, SURVEY_INTRO } from '../lib/surveyQuestions';
 import PortalShell, { GREEN } from '../components/PortalShell';
 
 const emptyAnswers = () => Object.fromEntries(SURVEY_QUESTIONS.map((q) => [q.key, '']));
+
+// A question with `showIf` only appears when another answer matches
+const isVisible = (q, answers) => !q.showIf || answers[q.showIf.key] === q.showIf.value;
 
 export default function SurveyPage() {
   const navigate = useNavigate();
@@ -44,13 +48,22 @@ export default function SurveyPage() {
   }, []);
 
   const setAnswer = (key, value) => {
-    setAnswers((a) => ({ ...a, [key]: value }));
+    setAnswers((a) => {
+      const next = { ...a, [key]: value };
+      // Clear answers of questions that this change just hid (e.g. switching Learning Session)
+      SURVEY_QUESTIONS.forEach((q) => {
+        if (!isVisible(q, next)) next[q.key] = '';
+      });
+      return next;
+    });
     setMissing((m) => m.filter((k) => k !== key));
   };
 
+  const visibleQuestions = SURVEY_QUESTIONS.filter((q) => isVisible(q, answers));
+
   async function handleSubmit(e) {
     e.preventDefault();
-    const miss = SURVEY_QUESTIONS.filter((q) => !String(answers[q.key]).trim()).map((q) => q.key);
+    const miss = visibleQuestions.filter((q) => !String(answers[q.key]).trim()).map((q) => q.key);
     setMissing(miss);
     if (miss.length) {
       setError('Please answer all required questions.');
@@ -60,7 +73,8 @@ export default function SurveyPage() {
 
     setError('');
     setLoading(true);
-    const payload = Object.fromEntries(SURVEY_QUESTIONS.map((q) => [q.key, String(answers[q.key]).trim()]));
+    // Only questions that were shown are saved
+    const payload = Object.fromEntries(visibleQuestions.map((q) => [q.key, String(answers[q.key]).trim()]));
     const { error: rpcError } = await supabase.rpc('submit_survey', { p_email: email, p_answers: payload });
     setLoading(false);
 
@@ -96,8 +110,8 @@ export default function SurveyPage() {
             </div>
           )}
 
-          {SURVEY_QUESTIONS.map((q, i) => {
-            const prev = SURVEY_QUESTIONS[i - 1];
+          {visibleQuestions.map((q, i) => {
+            const prev = visibleQuestions[i - 1];
             const newSection = !prev || prev.section !== q.section;
             const isMissing = missing.includes(q.key);
             return (
@@ -119,7 +133,7 @@ export default function SurveyPage() {
                   </p>
 
                   {q.type === 'choice' ? (
-                    <div className="mt-3 grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+                    <div className={`mt-3 grid ${q.options.length === 5 ? 'grid-cols-5' : 'grid-cols-2'} sm:flex sm:flex-wrap gap-2`}>
                       {q.options.map((opt) => {
                         const selected = answers[q.key] === opt.value;
                         return (
