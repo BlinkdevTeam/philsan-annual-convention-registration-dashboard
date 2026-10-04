@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { getPortalEmail, setPortalEmail, clearPortalEmail, callCertificate } from '../lib/portal';
 import PortalShell, { GREEN } from '../components/PortalShell';
+import LicenseForm from '../components/LicenseForm';
 
 const NOT_FOUND_MSG =
   "We couldn't find a timed-in attendee with this email. Please use the email you registered with. " +
@@ -15,6 +16,15 @@ export default function PortalPage() {
   const [loading, setLoading] = useState(!!getPortalEmail());
   const [issuing, setIssuing] = useState(false);
   const [error, setError] = useState('');
+  const [license, setLicense] = useState(null); // result of portal_get_license
+  const [editingLicense, setEditingLicense] = useState(false);
+
+  // PRC license step: must be done before Quiz / Survey / Certificate
+  async function loadLicense(addr) {
+    const { data, error: rpcError } = await supabase.rpc('portal_get_license', { p_email: addr });
+    // If the check itself fails, don't lock people out of the portal
+    setLicense(rpcError || !data?.found ? { done: true, unavailable: true } : data);
+  }
 
   async function loadStatus(addr) {
     setLoading(true);
@@ -33,6 +43,7 @@ export default function PortalPage() {
       return;
     }
     setPortalEmail(addr);
+    await loadLicense(addr);
     setStatus(data);
   }
 
@@ -55,6 +66,8 @@ export default function PortalPage() {
   function logout() {
     clearPortalEmail();
     setStatus(null);
+    setLicense(null);
+    setEditingLicense(false);
     setEmail('');
     setError('');
   }
@@ -112,6 +125,7 @@ export default function PortalPage() {
   // ---------- Dashboard ----------
   const { quiz_done, survey_done, certificate_token, first_name } = status;
   const certReady = quiz_done && survey_done;
+  const showLicenseForm = !license?.done || editingLicense;
 
   return (
     <PortalShell title="39th PHILSAN Annual Convention">
@@ -126,6 +140,32 @@ export default function PortalPage() {
           Log out
         </button>
       </div>
+
+      {showLicenseForm ? (
+        <LicenseForm
+          email={getPortalEmail()}
+          registered={license?.registered}
+          initial={license?.answers}
+          onCancel={editingLicense ? () => setEditingLicense(false) : undefined}
+          onSaved={async () => {
+            await loadLicense(getPortalEmail());
+            setEditingLicense(false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+      ) : (
+      <>
+      {!license.unavailable && (
+        <div className="bg-white rounded-xl shadow-sm px-5 py-3 mt-4 flex items-center justify-between gap-2">
+          <p className="text-sm text-gray-700">
+            <span className="font-semibold text-[#1F773A]">✓ PRC License Information</span>{' '}
+            {license.answers?.has_prc_license === 'Yes' ? 'saved' : '— no PRC license'}
+          </p>
+          <button onClick={() => setEditingLicense(true)} className="text-xs underline text-gray-500">
+            Review / edit
+          </button>
+        </div>
+      )}
 
       <div className="mt-4 space-y-3">
         <ActionCard
@@ -179,6 +219,8 @@ export default function PortalPage() {
           onClick={getCertificate}
         />
       </div>
+      </>
+      )}
 
       {error && <p className="text-sm text-red-600 mt-4 px-1">{error}</p>}
     </PortalShell>

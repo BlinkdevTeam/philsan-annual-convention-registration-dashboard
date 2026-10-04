@@ -8,7 +8,7 @@ import PortalShell, { GREEN } from '../components/PortalShell';
 
 const emptyAnswers = () => Object.fromEntries(SURVEY_QUESTIONS.map((q) => [q.key, '']));
 
-// A question with `showIf` only appears when another answer matches
+// A question with `showIf: { key, value }` only appears when another answer matches
 const isVisible = (q, answers) => !q.showIf || answers[q.showIf.key] === q.showIf.value;
 
 export default function SurveyPage() {
@@ -27,6 +27,12 @@ export default function SurveyPage() {
       return;
     }
     (async () => {
+      // PRC license step comes first; send them back to the portal if not done
+      const { data: lic } = await supabase.rpc('portal_get_license', { p_email: email });
+      if (lic?.found && !lic.done) {
+        navigate('/portal', { replace: true });
+        return;
+      }
       const { data, error: rpcError } = await supabase.rpc('get_survey_participant', { p_email: email });
       if (rpcError) {
         setError('Could not load the survey. Please refresh the page.');

@@ -10,6 +10,7 @@ import {
     callSymposiumCertificate,
 } from '../../symposium/symposiumPortal';
 import { SURVEY_QUESTIONS } from '../../symposium/surveyQuestions';
+import SymposiumLicenseForm from '../../symposium/SymposiumLicenseForm';
 import PortalShell, { GREEN } from '../../components/PortalShell';
 
 const NOT_FOUND_MSG =
@@ -22,6 +23,15 @@ export default function SymposiumPortal() {
     const [loading, setLoading] = useState(!!getSymposiumEmail());
     const [issuing, setIssuing] = useState(false);
     const [error, setError] = useState('');
+    const [license, setLicense] = useState(null); // result of symposium_get_license
+    const [editingLicense, setEditingLicense] = useState(false);
+
+    // PRC license step: must be done before Quiz / Survey / Certificate
+    async function loadLicense(addr) {
+        const { data, error: rpcError } = await supabase.rpc('symposium_get_license', { p_email: addr });
+        // If the check itself fails, don't lock people out of the portal
+        setLicense(rpcError || !data?.found ? { done: true, unavailable: true } : data);
+    }
 
     async function loadStatus(addr) {
         setLoading(true);
@@ -40,6 +50,7 @@ export default function SymposiumPortal() {
             return;
         }
         setSymposiumEmail(addr);
+        await loadLicense(addr);
         setStatus(data);
     }
 
@@ -62,6 +73,8 @@ export default function SymposiumPortal() {
     function logout() {
         clearSymposiumEmail();
         setStatus(null);
+        setLicense(null);
+        setEditingLicense(false);
         setEmail('');
         setError('');
     }
@@ -120,6 +133,7 @@ export default function SymposiumPortal() {
     const { quiz_open, quiz_done, survey_done, certificate_token, first_name } = status;
     const surveyOpen = SURVEY_QUESTIONS.length > 0;
     const certReady = quiz_done && survey_done;
+    const showLicenseForm = !license?.done || editingLicense;
 
     return (
         <PortalShell title={SYMPOSIUM_NAME}>
@@ -134,6 +148,32 @@ export default function SymposiumPortal() {
                     Log out
                 </button>
             </div>
+
+            {showLicenseForm ? (
+                <SymposiumLicenseForm
+                    email={getSymposiumEmail()}
+                    registered={license?.registered}
+                    initial={license?.answers}
+                    onCancel={editingLicense ? () => setEditingLicense(false) : undefined}
+                    onSaved={async () => {
+                        await loadLicense(getSymposiumEmail());
+                        setEditingLicense(false);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                />
+            ) : (
+            <>
+            {!license.unavailable && (
+                <div className="bg-white rounded-xl shadow-sm px-5 py-3 mt-4 flex items-center justify-between gap-2">
+                    <p className="text-sm text-gray-700">
+                        <span className="font-semibold text-[#1F773A]">✓ PRC License Information</span>{' '}
+                        {license.answers?.has_prc_license === 'Yes' ? 'saved' : '— no PRC license'}
+                    </p>
+                    <button onClick={() => setEditingLicense(true)} className="text-xs underline text-gray-500">
+                        Review / edit
+                    </button>
+                </div>
+            )}
 
             <div className="mt-4 space-y-3">
                 <ActionCard
@@ -192,6 +232,8 @@ export default function SymposiumPortal() {
                     onClick={getCertificate}
                 />
             </div>
+            </>
+            )}
 
             {error && <p className="text-sm text-red-600 mt-4 px-1">{error}</p>}
         </PortalShell>

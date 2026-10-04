@@ -47,6 +47,12 @@ export default function SymposiumQuiz() {
       return;
     }
     (async () => {
+      // PRC license step comes first; send them back to the portal if not done
+      const { data: lic } = await supabase.rpc('symposium_get_license', { p_email: email });
+      if (lic?.found && !lic.done) {
+        navigate(BASE, { replace: true });
+        return;
+      }
       const { data, error: rpcError } = await supabase.rpc('symposium_get_quiz', { p_email: email });
       if (rpcError) {
         setError('Could not load the quiz. Please refresh the page.');
