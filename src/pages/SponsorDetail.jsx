@@ -7,6 +7,7 @@ const STATUS_BADGE = {
     pending: 'bg-[#FAEEDA] text-[#854F0B]',
     approved: 'bg-[#EAF3DE] text-[#3B6D11]',
     canceled: 'bg-[#FCEBEB] text-[#A32D2D]',
+    rejected: 'bg-[#FCEBEB] text-[#A32D2D]',
 };
 
 export default function SponsorDetail() {
@@ -64,10 +65,11 @@ export default function SponsorDetail() {
             acc.total++;
             if (p.reg_status === 'approved') acc.approved++;
             else if (p.reg_status === 'pending') acc.pending++;
+            else if (p.reg_status === 'rejected') acc.rejected++;
             else if (p.reg_status === 'canceled') acc.canceled++;
             return acc;
         },
-        { total: 0, approved: 0, pending: 0, canceled: 0 }
+        { total: 0, approved: 0, pending: 0, rejected: 0, canceled: 0 }
     );
 
     // Search by name, email, or company
@@ -112,12 +114,13 @@ export default function SponsorDetail() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-5 gap-4 mb-8">
                 {[
                     { label: 'Total', value: stats.total, bg: 'bg-white', text: 'text-[#344054]' },
                     { label: 'Approved', value: stats.approved, bg: 'bg-[#EAF3DE]', text: 'text-[#3B6D11]' },
                     { label: 'Pending', value: stats.pending, bg: 'bg-[#FAEEDA]', text: 'text-[#854F0B]' },
-                    { label: 'Rejected', value: stats.canceled, bg: 'bg-[#FCEBEB]', text: 'text-[#A32D2D]' },
+                    { label: 'Rejected', value: stats.rejected, bg: 'bg-[#FCEBEB]', text: 'text-[#A32D2D]' },
+                    { label: 'Canceled', value: stats.canceled, bg: 'bg-[#F0E6FF]', text: 'text-[#6B21A8]' },
                 ].map(({ label, value, bg, text }) => (
                     <div key={label} className={`${bg} border border-[#e5e3da] rounded-lg px-5 py-4`}>
                         <p className="text-[12px] text-[#5f5e5a] mb-1">{label}</p>

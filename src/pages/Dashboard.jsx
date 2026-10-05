@@ -22,6 +22,10 @@ function canTransfer(status) {
     return status === 'pending' || status === 'approved';
 }
 
+function sponsorOf(p) {
+    return p.sponsored === 'yes' ? (p.sponsor ?? '').trim() : '';
+}
+
 function fullName(p) {
     return `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim().toUpperCase();
 }
@@ -30,6 +34,7 @@ export default function Dashboard() {
     const navigate = useNavigate();
     const [statusFilter, setStatusFilter] = useState('approved');
     const [search, setSearch] = useState('');
+    const [sponsorFilter, setSponsorFilter] = useState('');
     const [transferTarget, setTransferTarget] = useState(null);
     const [actionError, setActionError] = useState('');
 
@@ -40,20 +45,31 @@ export default function Dashboard() {
         transferParticipant,
     } = useParticipants(statusFilter);
 
+    // Sponsor names for the dropdown (A → Z)
+    const sponsorOptions = useMemo(() => {
+        const names = new Set(participants.map(sponsorOf).filter(Boolean));
+        if (sponsorFilter) names.add(sponsorFilter);
+        return [...names].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    }, [participants, sponsorFilter]);
+
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
 
-        const list = q
-            ? participants.filter((p) =>
-                `${p.first_name} ${p.last_name} ${p.email} ${p.company}`.toLowerCase().includes(q)
-            )
+        let list = sponsorFilter
+            ? participants.filter((p) => sponsorOf(p) === sponsorFilter)
             : participants;
+
+        if (q) {
+            list = list.filter((p) =>
+                `${p.first_name} ${p.last_name} ${p.email} ${p.company} ${sponsorOf(p)}`.toLowerCase().includes(q)
+            );
+        }
 
         // Alphabetical A → Z by the name exactly as displayed ("First Last")
         return [...list].sort((a, b) =>
             fullName(a).localeCompare(fullName(b), undefined, { sensitivity: 'base' })
         );
-    }, [participants, search]);
+    }, [participants, search, sponsorFilter]);
 
     async function handleTransfer(sponsorName) {
         setActionError('');
@@ -86,10 +102,24 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            {/* Search */}
-            <input type="search" placeholder="Search name, email, company…"
-                value={search} onChange={(e) => setSearch(e.target.value)}
-                className="w-full p-2.5 rounded-md border border-[#339544] text-[13.5px] mb-4" />
+            {/* Search + sponsor filter */}
+            <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                <input type="search" placeholder="Search name, email, company, sponsor…"
+                    value={search} onChange={(e) => setSearch(e.target.value)}
+                    className="flex-1 p-2.5 rounded-md border border-[#339544] text-[13.5px]" />
+                <select value={sponsorFilter} onChange={(e) => setSponsorFilter(e.target.value)}
+                    className="sm:w-[280px] p-2.5 rounded-md border border-[#339544] text-[13.5px] bg-white">
+                    <option value="">All sponsors</option>
+                    {sponsorOptions.map((name) => (
+                        <option key={name} value={name}>{name}</option>
+                    ))}
+                </select>
+            </div>
+            {!loading && !error && sponsorFilter && (
+                <p className="text-[12.5px] text-[#5f5e5a] -mt-2 mb-3">
+                    {filtered.length} participant{filtered.length === 1 ? '' : 's'} under {sponsorFilter}
+                </p>
+            )}
 
             {actionError && <p className="text-[13px] text-[#A32D2D] mb-4">{actionError}</p>}
             {loading && <p className="text-[13.5px] text-[#5f5e5a]">Loading…</p>}
