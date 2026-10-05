@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import DownloadSponsorCsv from '../components/DownloadSponsorCsv';
 
 const STATUS_BADGE = {
     pending: 'bg-[#FAEEDA] text-[#854F0B]',
@@ -100,11 +101,14 @@ export default function SponsorDetail() {
             </button>
 
             {/* Header */}
-            <div className="mb-6">
-                <h1 className="text-[22px] font-bold text-[#16572A]">{sponsor.name}</h1>
-                <p className="text-[13px] text-[#5f5e5a] mt-1 font-mono">
-                    /sponsor/{sponsor.slug}
-                </p>
+            <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h1 className="text-[22px] font-bold text-[#16572A]">{sponsor.name}</h1>
+                    <p className="text-[13px] text-[#5f5e5a] mt-1 font-mono">
+                        /sponsor/{sponsor.slug}
+                    </p>
+                </div>
+                <DownloadSponsorCsv sponsorName={sponsor.name.trim()} />
             </div>
 
             {/* Stats */}

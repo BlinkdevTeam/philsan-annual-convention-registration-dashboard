@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { downloadParticipantsCsv } from '../lib/participantsCsv';
 
 const STATUS_COLORS = {
     approved: 'text-[#3B6D11] bg-[#EAF3DE]',
@@ -58,6 +59,23 @@ export default function Overview() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [downloading, setDownloading] = useState(false);
+
+    async function handleDownloadApproved() {
+        setDownloading(true);
+        try {
+            const today = new Date().toISOString().slice(0, 10);
+            const n = await downloadParticipantsCsv({
+                filters: { reg_status: 'approved' },
+                filename: `Approved participants ${today}.csv`,
+            });
+            if (n === 0) window.alert('There are no approved participants yet.');
+        } catch (err) {
+            window.alert('Could not download the file: ' + (err.message || err));
+        } finally {
+            setDownloading(false);
+        }
+    }
 
     useEffect(() => { fetchStats(); }, []);
 
@@ -185,9 +203,19 @@ export default function Overview() {
 
     return (
         <div className="px-4 lg:px-8 py-6 lg:py-8">
-            <div className="mb-5">
-                <h1 className="text-[20px] lg:text-[22px] font-bold text-[#16572A]">Overview</h1>
-                <p className="text-[13px] text-[#5f5e5a] mt-1">Registration statistics at a glance.</p>
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h1 className="text-[20px] lg:text-[22px] font-bold text-[#16572A]">Overview</h1>
+                    <p className="text-[13px] text-[#5f5e5a] mt-1">Registration statistics at a glance.</p>
+                </div>
+                <button
+                    type="button"
+                    onClick={handleDownloadApproved}
+                    disabled={downloading}
+                    className="bg-[#16572A] text-white text-[13px] font-medium rounded-md px-4 py-2 hover:opacity-90 disabled:opacity-60"
+                >
+                    {downloading ? 'Preparing…' : 'Download approved (CSV)'}
+                </button>
             </div>
 
             {/* Summary cards */}
