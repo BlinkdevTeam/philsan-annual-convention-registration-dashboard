@@ -9,6 +9,7 @@ import SponsorDetail from './pages/SponsorDetail';
 import ParticipantDetail from './pages/ParticipantDetail';
 import Attendance from './pages/Attendance';
 import WalkInRegistration from './pages/WalkInRegistration';
+import AddParticipant from './pages/AddParticipant';
 import ParticipantQR from './pages/ParticipantQR';
 import SponsorLogin from './pages/SponsorLogin';
 import SponsorStatus from './pages/SponsorStatus';
@@ -64,6 +65,7 @@ export default function App() {
                 <Route path="/sponsors/:slug"           element={<AdminPages><SponsorDetail /></AdminPages>} />
                 <Route path="/attendance"               element={<AdminPages><Attendance /></AdminPages>} />
                 <Route path="/walk-in"                  element={<AdminPages><WalkInRegistration /></AdminPages>} />
+                <Route path="/add-participant"          element={<AdminPages><AddParticipant /></AdminPages>} />
                 <Route path="/survey-results"           element={<AdminPages><SurveyResults /></AdminPages>} />
                 <Route path="/quiz-results"             element={<AdminPages><QuizResults /></AdminPages>} />
                 <Route path="/reports"                  element={<AdminPages><Reports /></AdminPages>} />

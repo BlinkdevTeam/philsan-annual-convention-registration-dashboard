@@ -9,6 +9,7 @@ const NAV = [
     { to: '/attendance',        label: 'Attendance',        icon: '🎫' },
     { to: '/scanner-operators', label: 'Scanner Operators', icon: '📱' },
     { to: '/walk-in',           label: 'Walk-In',           icon: '📝' },
+    { to: '/add-participant',   label: 'Add Participant',   icon: '➕' },
     { to: '/survey-results',    label: 'Survey Results',    icon: '📋' },
     { to: '/quiz-results',      label: 'Quiz Results',      icon: '🧠' },
     { to: '/reports',           label: 'Reports',           icon: '📄' },
