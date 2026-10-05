@@ -1,16 +1,11 @@
 // src/components/PrintExhibitors.jsx
-// 39th Annual Convention: prints plain "EXHIBITOR" labels in the same 70 x 70 mm
-// format as the participant QR labels (same font, cut lines and printer DPI),
-// without QR code or company.
+// 39th Annual Convention: prints "EXHIBITOR" strips one after another on
+// continuous paper (Phomemo), with dashed cut lines between them.
+// Same font, cut lines and printer DPI as the participant QR labels.
 import { useState } from 'react';
 import {
   LABEL_MM,
-  PAD_MM,
   INNER_MM,
-  SHEET_W_MM,
-  SHEET_H_MM,
-  EXT_TOP_MM,
-  NAME_MAX_MM,
   CUT_LINE_MM,
   CUT_DASH_MM,
   CUT_GAP_MM,
@@ -22,38 +17,44 @@ import {
 } from '../lib/qrLabel';
 
 const TEXT = 'EXHIBITOR';
-const MAX_SIZE_MM = Math.max(NAME_MAX_MM, 12); // as large as fits the label width
+const STRIP_W_MM = LABEL_MM;   // 70 mm paper width
+const STRIP_H_MM = 17.5;       // height of one EXHIBITOR strip
+// Width the word may take up across the 70 mm paper. Lower = smaller word, more side margin.
+const TEXT_WIDTH_MM = 52;
+const MAX_COUNT = 200;
 
-// Same canvas approach as drawLabelCanvas, with only the word centred on the label
-function drawExhibitorCanvas() {
+// One strip: the word centred, a dashed cut line along the top,
+// and also along the bottom when it is the last strip.
+function drawStripCanvas(isLast) {
   const px = (mm) => Math.round(mm * MM_TO_PX);
   const canvas = document.createElement('canvas');
-  canvas.width = px(SHEET_W_MM);
-  canvas.height = px(SHEET_H_MM);
+  canvas.width = px(STRIP_W_MM);
+  canvas.height = px(STRIP_H_MM);
   const ctx = canvas.getContext('2d');
 
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Dashed cut lines at the top and bottom edge of the label (same as participant labels)
+  const lw = Math.max(1, px(CUT_LINE_MM));
   ctx.strokeStyle = '#000000';
-  ctx.lineWidth = Math.max(1, px(CUT_LINE_MM));
+  ctx.lineWidth = lw;
   ctx.setLineDash([px(CUT_DASH_MM), px(CUT_GAP_MM)]);
-  [EXT_TOP_MM, EXT_TOP_MM + LABEL_MM].forEach((yMm) => {
+  const lines = isLast ? [lw / 2, canvas.height - lw / 2] : [lw / 2];
+  lines.forEach((y) => {
     ctx.beginPath();
-    ctx.moveTo(0, px(yMm));
-    ctx.lineTo(canvas.width, px(yMm));
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
     ctx.stroke();
   });
   ctx.setLineDash([]);
 
-  // Largest size where the word fits inside the padded width
-  const sizeMm = Math.min(MAX_SIZE_MM, INNER_MM / measureEm(TEXT));
+  // Largest size where the word fits inside TEXT_WIDTH_MM and the strip height
+  const sizeMm = Math.min(STRIP_H_MM * 0.75, Math.min(TEXT_WIDTH_MM, INNER_MM) / measureEm(TEXT));
   ctx.fillStyle = '#1d1b16';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = `${WEIGHT} ${px(sizeMm)}px ${FONT}`;
-  ctx.fillText(TEXT, canvas.width / 2, px(EXT_TOP_MM + LABEL_MM / 2));
+  ctx.fillText(TEXT, canvas.width / 2, canvas.height / 2);
   return canvas;
 }
 
@@ -61,11 +62,11 @@ export default function PrintExhibitors() {
   const [busy, setBusy] = useState(false);
 
   async function handleClick() {
-    const answer = window.prompt('How many EXHIBITOR labels do you want to print?', '10');
+    const answer = window.prompt('How many EXHIBITOR strips do you want to print?', '20');
     if (answer === null) return;
     const count = parseInt(answer, 10);
-    if (!Number.isFinite(count) || count < 1 || count > 500) {
-      window.alert('Please enter a number from 1 to 500.');
+    if (!Number.isFinite(count) || count < 1 || count > MAX_COUNT) {
+      window.alert(`Please enter a number from 1 to ${MAX_COUNT}.`);
       return;
     }
 
@@ -81,21 +82,25 @@ export default function PrintExhibitors() {
     try {
       await loadMontserrat();
       await document.fonts.ready;
-      const png = drawExhibitorCanvas().toDataURL('image/png');
-      const pages = Array.from({ length: count }, () => `<div class="page"><img src="${png}" alt="EXHIBITOR"></div>`).join('');
+      const stripPng = drawStripCanvas(false).toDataURL('image/png');
+      const lastPng = drawStripCanvas(true).toDataURL('image/png');
+      const strips = Array.from({ length: count }, (_, i) =>
+        `<img src="${i === count - 1 ? lastPng : stripPng}" alt="EXHIBITOR">`
+      ).join('');
+      const totalH = +(count * STRIP_H_MM).toFixed(2);
 
       win.document.open();
       win.document.write(`<!doctype html>
-<html><head><meta charset="utf-8"><title>Exhibitor labels (${count})</title>
+<html><head><meta charset="utf-8"><title>Exhibitor strips (${count})</title>
 <style>
-  @page { size: ${SHEET_W_MM}mm ${SHEET_H_MM}mm; margin: 0; }
+  /* One continuous page as long as all the strips together */
+  @page { size: ${STRIP_W_MM}mm ${totalH}mm; margin: 0; }
   html, body { margin: 0; padding: 0; background: #fff; }
-  .page { width: ${SHEET_W_MM}mm; height: ${SHEET_H_MM}mm; page-break-after: always; break-after: page; overflow: hidden; }
-  .page:last-child { page-break-after: auto; break-after: auto; }
-  .page img { display: block; width: ${SHEET_W_MM}mm; height: ${SHEET_H_MM}mm; }
-  @media screen { body { background: #eee; padding: 12px; } .page { background: #fff; margin: 0 auto 12px; box-shadow: 0 1px 4px rgba(0,0,0,.2); } }
+  .roll { width: ${STRIP_W_MM}mm; height: ${totalH}mm; overflow: hidden; }
+  .roll img { display: block; width: ${STRIP_W_MM}mm; height: ${STRIP_H_MM}mm; }
+  @media screen { body { background: #eee; padding: 12px; } .roll { background: #fff; margin: 0 auto; box-shadow: 0 1px 4px rgba(0,0,0,.2); } }
 </style></head>
-<body>${pages}
+<body><div class="roll">${strips}</div>
 <script>
   var imgs = document.images, left = imgs.length;
   function go() { setTimeout(function () { window.focus(); window.print(); }, 200); }
