@@ -9,6 +9,11 @@ const STATUS_COLORS = {
     canceled: 'text-[#6B21A8] bg-[#F0E6FF]',
 };
 
+// Licensed = the PRC license field holds a real number (not N/A, None, -, 0, 0000 …)
+function isLicensed(p) {
+    return /[1-9]/.test(String(p.agri_license ?? ''));
+}
+
 function StatCard({ label, value, sub }) {
     return (
         <div className="bg-white border border-[#e5e3da] rounded-lg px-4 py-4">
@@ -61,7 +66,7 @@ export default function Overview() {
         setError('');
         try {
             const [{ data: participants, error: pErr }, { data: sponsors, error: sErr }] = await Promise.all([
-                supabase.from('participants').select('reg_status, sponsored, sponsor, membership, souvenir, certificate_needed, age, is_student'),
+                supabase.from('participants').select('reg_status, sponsored, sponsor, membership, souvenir, certificate_needed, age, is_student, agri_license'),
                 supabase.from('sponsors').select('id'),
             ]);
 
@@ -89,6 +94,14 @@ export default function Overview() {
                 { label: 'Rejected', count: studentRejected },
                 { label: 'Canceled', count: studentCanceled },
             ].filter(r => r.count > 0);
+
+            // PRC licensed
+            const licensed         = participants.filter(isLicensed);
+            const totalLicensed    = licensed.length;
+            const licensedApproved = licensed.filter(p => p.reg_status === 'approved').length;
+            const licensedPending  = licensed.filter(p => p.reg_status === 'pending').length;
+            const licensedRejected = licensed.filter(p => p.reg_status === 'rejected').length;
+            const licensedCanceled = licensed.filter(p => p.reg_status === 'canceled').length;
 
             // Membership
             const membershipMap = {};
@@ -151,6 +164,7 @@ export default function Overview() {
                 total, approved, pending, rejected, canceled, sponsored, selfPaying,
                 totalSponsors: sponsors.length, membership, souvenir, certificate, ageGroups, topSponsors,
                 totalStudents, studentApproved, studentPending, studentRejected, studentCanceled, studentStatusRows,
+                totalLicensed, licensedApproved, licensedPending, licensedRejected, licensedCanceled,
             });
         } catch (err) {
             setError('Failed to load stats.');
@@ -198,6 +212,23 @@ export default function Overview() {
                         <p className="text-[11px] mt-1 opacity-70">{data.total > 0 ? Math.round((value / data.total) * 100) : 0}%</p>
                     </button>
                 ))}
+            </div>
+
+            {/* PRC licensed */}
+            <div className="bg-white border border-[#e5e3da] rounded-lg p-4 mb-4">
+                <h2 className="text-[13.5px] font-bold text-[#344054] mb-3">PRC licensed</h2>
+                <div className="flex items-end gap-2 mb-3">
+                    <p className="text-[28px] font-bold text-[#16572A] leading-none">{data.totalLicensed}</p>
+                    <p className="text-[11px] text-[#888780] mb-1">
+                        of all {data.total} participants ({data.total > 0 ? Math.round((data.totalLicensed / data.total) * 100) : 0}%)
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-[11.5px] text-[#5f5e5a]">
+                    <span>Approved: <strong className="text-[#3B6D11]">{data.licensedApproved}</strong></span>
+                    <span>Pending: <strong className="text-[#854F0B]">{data.licensedPending}</strong></span>
+                    <span>Rejected: <strong className="text-[#A32D2D]">{data.licensedRejected}</strong></span>
+                    <span>Canceled: <strong className="text-[#6B21A8]">{data.licensedCanceled}</strong></span>
+                </div>
             </div>
 
             {/* Students */}

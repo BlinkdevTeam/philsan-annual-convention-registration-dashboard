@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import DownloadAllQR from '../components/DownloadAllQR';
+import PrintExhibitors from '../components/PrintExhibitors';
 
 function tally(rows, key) {
     const counts = {};
@@ -292,9 +293,10 @@ export default function Attendance() {
             <div>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <h1 className="...">Attendance</h1>
-                    <div  className="flex gap-[20px]">
+                    <div  className="flex items-center gap-[20px]">
                         <DownloadAllQR />
                         <DownloadAllQR mode="unprinted" />
+                        <PrintExhibitors />
                     </div>
                 </div>
                 <p className="text-[13px] text-[#5f5e5a] mt-1">
