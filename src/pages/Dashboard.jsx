@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabaseClient';
 import { useParticipants } from '../lib/useParticipants';
 import TransferModal from '../components/TransferModal';
 
@@ -26,6 +27,10 @@ function sponsorOf(p) {
     return p.sponsored === 'yes' ? (p.sponsor ?? '').trim() : '';
 }
 
+function timeLabel(iso) {
+    return iso ? new Date(iso).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }) : '';
+}
+
 function fullName(p) {
     return `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim().toUpperCase();
 }
@@ -37,6 +42,101 @@ export default function Dashboard() {
     const [sponsorFilter, setSponsorFilter] = useState('');
     const [transferTarget, setTransferTarget] = useState(null);
     const [actionError, setActionError] = useState('');
+
+    // Time in: participant_id -> { id, scanned_at } from attendance_logs
+    const [timeIns, setTimeIns] = useState(new Map());
+    const [timeBusyId, setTimeBusyId] = useState(null);
+
+    const fetchTimeIns = useCallback(async () => {
+        const PAGE = 1000;
+        const map = new Map();
+        for (let from = 0; ; from += PAGE) {
+            const { data, error } = await supabase
+                .from('attendance_logs')
+                .select('id, participant_id, scanned_at')
+                .order('id', { ascending: true })
+                .range(from, from + PAGE - 1);
+            if (error) { console.error(error); return; }
+            for (const l of data) map.set(l.participant_id, l);
+            if (data.length < PAGE) break;
+        }
+        setTimeIns(map);
+    }, []);
+
+    useEffect(() => {
+        fetchTimeIns();
+        // Keep in sync with the scanners and the Attendance page
+        let t = null;
+        const channel = supabase
+            .channel('participants_page_time_in')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_logs' }, () => {
+                clearTimeout(t);
+                t = setTimeout(fetchTimeIns, 800);
+            })
+            .subscribe();
+        return () => { clearTimeout(t); supabase.removeChannel(channel); };
+    }, [fetchTimeIns]);
+
+    async function handleTimeIn(p) {
+        setActionError('');
+        setTimeBusyId(p.id);
+        const { data, error } = await supabase
+            .from('attendance_logs')
+            .insert({ participant_id: p.id, scanned_by: null, device_id: 'manual-dashboard' })
+            .select('id, participant_id, scanned_at')
+            .single();
+        setTimeBusyId(null);
+        if (error) {
+            if (error.code === '23505') {
+                setActionError(`${fullName(p)} is already timed in.`);
+                fetchTimeIns();
+            } else {
+                setActionError(error.message);
+            }
+            return;
+        }
+        setTimeIns((prev) => new Map(prev).set(p.id, data));
+    }
+
+    async function handleUndoTimeIn(p) {
+        const log = timeIns.get(p.id);
+        if (!log) return;
+        if (!window.confirm(`Undo time in for ${fullName(p)}?`)) return;
+        setActionError('');
+        setTimeBusyId(p.id);
+        const { error } = await supabase.from('attendance_logs').delete().eq('id', log.id);
+        setTimeBusyId(null);
+        if (error) {
+            setActionError(error.message);
+            return;
+        }
+        setTimeIns((prev) => { const m = new Map(prev); m.delete(p.id); return m; });
+    }
+
+    // Time in / Undo control for one participant (approved only)
+    function TimeInControl({ p, small }) {
+        if (p.reg_status !== 'approved') return null;
+        const log = timeIns.get(p.id);
+        const busy = timeBusyId === p.id;
+        const size = small ? 'text-[12px]' : 'text-[12.5px]';
+        if (log) {
+            return (
+                <div className={`flex ${small ? 'items-center gap-2' : 'flex-col items-end'}`}>
+                    <span className={`${size} text-[#3B6D11] font-medium whitespace-nowrap`}>✓ {timeLabel(log.scanned_at)}</span>
+                    <button onClick={() => handleUndoTimeIn(p)} disabled={busy}
+                        className={`${size} text-[#A32D2D] hover:underline disabled:opacity-50`}>
+                        {busy ? '…' : 'Undo'}
+                    </button>
+                </div>
+            );
+        }
+        return (
+            <button onClick={() => handleTimeIn(p)} disabled={busy}
+                className={`px-3 py-1.5 rounded-md ${size} font-medium text-white bg-[#16572A] hover:opacity-90 disabled:opacity-50 whitespace-nowrap`}>
+                {busy ? 'Saving…' : 'Time in'}
+            </button>
+        );
+    }
 
     const {
         participants,
@@ -134,7 +234,7 @@ export default function Dashboard() {
             {/* Desktop table */}
             {!loading && !error && filtered.length > 0 && (
                 <>
-                    <div className="hidden lg:block bg-white border border-[#e5e3da] rounded-lg overflow-hidden">
+                    <div className="hidden lg:block bg-white border border-[#e5e3da] rounded-lg overflow-x-auto">
                         <table className="w-full text-[13.5px]">
                             <thead>
                                 <tr className="bg-[#f7f6f1] text-left text-[#344054]">
@@ -167,7 +267,8 @@ export default function Dashboard() {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                                            <div className="flex justify-end">
+                                            <div className="flex flex-col items-end gap-1.5">
+                                                <TimeInControl p={p} />
                                                 {canTransfer(p.reg_status) && (
                                                     <button
                                                         onClick={() => setTransferTarget(p)}
@@ -200,13 +301,16 @@ export default function Dashboard() {
                                 {p.age && <p className="text-[12.5px] text-[#5f5e5a]">Age: {p.age}</p>}
                                 {p.is_student === 'yes' && <p className="text-[11.5px] text-[#16572A] mt-1">Student</p>}
                                 {p.sponsored === 'yes' && <p className="text-[11.5px] text-[#854F0B] mt-1">Sponsored by {p.sponsor || 'sponsor'}</p>}
-                                {canTransfer(p.reg_status) && (
-                                    <div className="mt-3" onClick={(e) => e.stopPropagation()}>
-                                        <button
-                                            onClick={() => setTransferTarget(p)}
-                                            className="px-3 py-1.5 rounded-md text-[12px] font-medium text-[#16572A] border border-[#16572A]">
-                                            Transfer
-                                        </button>
+                                {(p.reg_status === 'approved' || canTransfer(p.reg_status)) && (
+                                    <div className="mt-3 flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                                        <TimeInControl p={p} small />
+                                        {canTransfer(p.reg_status) && (
+                                            <button
+                                                onClick={() => setTransferTarget(p)}
+                                                className="px-3 py-1.5 rounded-md text-[12px] font-medium text-[#16572A] border border-[#16572A]">
+                                                Transfer
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
