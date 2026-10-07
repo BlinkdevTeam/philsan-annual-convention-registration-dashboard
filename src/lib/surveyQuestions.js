@@ -135,6 +135,7 @@ export const SPEAKER_QUESTIONS = [
   ...speaker('sulabo', 'Dr. Rommel Sulabo'),
   ...speaker('delbarrio', 'Dr. Arnel Del Barrio'),
   ...speaker('bautista', 'Dr. Karen Bautista'),
+  ...speaker('garcia', 'ASec. Michael J. Garcia'),
 
   // Learning Session choice
   {
