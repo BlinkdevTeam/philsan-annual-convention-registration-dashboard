@@ -22,7 +22,7 @@ import QuizPage from './pages/QuizPage';
 import QuizMaintenance from './pages/QuizMaintenance';
 
 // 39th quiz maintenance: true = participants see the maintenance page, false = the quiz is open
-const QUIZ_MAINTENANCE = true;
+const QUIZ_MAINTENANCE = false;
 import CertificatePage from './pages/CertificatePage';
 import VerifyPage from './pages/VerifyPage';
 import SymposiumDashboard from './pages/SymposiumDashboard';
