@@ -19,6 +19,10 @@ import Reports from './pages/Reports';
 import PortalPage from './pages/PortalPage';
 import SurveyPage from './pages/SurveyPage';
 import QuizPage from './pages/QuizPage';
+import QuizMaintenance from './pages/QuizMaintenance';
+
+// 39th quiz maintenance: true = participants see the maintenance page, false = the quiz is open
+const QUIZ_MAINTENANCE = true;
 import CertificatePage from './pages/CertificatePage';
 import VerifyPage from './pages/VerifyPage';
 import SymposiumDashboard from './pages/SymposiumDashboard';
@@ -76,7 +80,7 @@ export default function App() {
 
                 {/* Participant portal (public) */}
                 <Route path="/portal"                   element={<PortalPage />} />
-                <Route path="/portal/quiz"              element={<QuizPage />} />
+                <Route path="/portal/quiz"              element={QUIZ_MAINTENANCE ? <QuizMaintenance /> : <QuizPage />} />
                 <Route path="/portal/survey"            element={<SurveyPage />} />
                 <Route path="/certificate/:token"       element={<CertificatePage />} />
                 <Route path="/verify/:code"             element={<VerifyPage />} />
