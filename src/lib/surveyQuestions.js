@@ -5,7 +5,7 @@
 
 export const SURVEY_TITLE = 'Evaluation Form: 39th PHILSAN Annual Convention';
 export const SURVEY_INTRO =
-  'Thank you for attending our seminar! We value your feedback to help us improve future events. Please take a few minutes to complete this evaluation form.';
+  'Thank you for attending our convention! We value your feedback to help us improve future events. Please take a few minutes to complete this evaluation form.';
 
 const RATING = [
   { value: 'excellent', label: 'Excellent' },
@@ -19,7 +19,7 @@ export const SURVEY_QUESTIONS = [
   {
     key: 'overall_experience',
     section: 'Overall Experience',
-    label: 'How would you rate your overall experience at the seminar?',
+    label: 'How would you rate your overall experience at the convention?',
     type: 'choice',
     options: RATING,
   },
@@ -65,19 +65,19 @@ export const SURVEY_QUESTIONS = [
   {
     key: 'most_valuable',
     section: 'Key Takeaways',
-    label: 'What was the most valuable part of the seminar for you?',
+    label: 'What was the most valuable part of the convention for you?',
     type: 'text',
   },
   {
     key: 'improvements',
     section: 'Suggestions for Improvement',
-    label: 'What could we do to improve future seminars?',
+    label: 'What could we do to improve future conventions?',
     type: 'text',
   },
   {
     key: 'recommend',
     section: 'Likelihood to Recommend',
-    label: 'How likely are you to recommend this seminar to others?',
+    label: 'How likely are you to recommend this convention to others?',
     type: 'choice',
     options: [
       { value: 'very_likely', label: 'Very Likely' },
