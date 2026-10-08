@@ -6,6 +6,11 @@ import PortalShell, { GREEN } from '../components/PortalShell';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
+// Everyone answers the Plenary questions, then picks the ONE learning session they attended
+// and answers only that session's questions.
+const PLENARY = 'Plenary';
+const SESSION_KEY = '__session'; // stored in the draft only, never sent as an answer
+
 // Progress is kept in this browser until submit, so a refresh doesn't wipe answers.
 const draftKey = (email) => `philsan_quiz_draft_${email}`;
 const loadDraft = (email) => {
@@ -40,6 +45,7 @@ export default function QuizPage() {
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [chosenSession, setChosenSession] = useState('');
 
   useEffect(() => {
     if (!email) {
@@ -72,15 +78,37 @@ export default function QuizPage() {
       const draft = loadDraft(email);
       setQuestions(qs);
       setAnswers(Object.fromEntries(qs.filter((q) => draft[q.id]).map((q) => [q.id, draft[q.id]])));
+      if (draft[SESSION_KEY] && qs.some((q) => q.session === draft[SESSION_KEY])) setChosenSession(draft[SESSION_KEY]);
       setStep('form');
     })();
   }, []);
 
   useEffect(() => {
-    if (step === 'form') saveDraft(email, answers);
-  }, [answers, step, email]);
+    if (step === 'form') saveDraft(email, { ...answers, [SESSION_KEY]: chosenSession });
+  }, [answers, chosenSession, step, email]);
 
-  const answeredCount = questions.filter((q) => answers[q.id]).length;
+  // Plenary first, then the learning sessions in their original order
+  const plenaryQs = questions.filter((q) => q.session === PLENARY);
+  const sessionNames = [...new Set(questions.filter((q) => q.session !== PLENARY).map((q) => q.session))];
+  const sessionQs = questions.filter((q) => q.session === chosenSession);
+  const visible = [...plenaryQs, ...sessionQs];
+  const totalToAnswer = plenaryQs.length + (chosenSession ? sessionQs.length : questions.filter((q) => q.session === sessionNames[0]).length);
+  const answeredCount = visible.filter((q) => answers[q.id]).length;
+
+  function chooseSession(name) {
+    setChosenSession(name);
+    setMissing((m) => m.filter((id) => id !== SESSION_KEY));
+    setError('');
+    // Drop answers from a session they switched away from
+    setAnswers((a) =>
+      Object.fromEntries(
+        Object.entries(a).filter(([id]) => {
+          const q = questions.find((x) => String(x.id) === String(id));
+          return q && (q.session === PLENARY || q.session === name);
+        })
+      )
+    );
+  }
 
   function pick(qid, letter) {
     setAnswers((a) => ({ ...a, [qid]: letter }));
@@ -89,10 +117,14 @@ export default function QuizPage() {
 
   function handleReview(e) {
     e.preventDefault();
-    const miss = questions.filter((q) => !answers[q.id]).map((q) => q.id);
+    const miss = [
+      ...plenaryQs.filter((q) => !answers[q.id]).map((q) => q.id),
+      ...(chosenSession ? sessionQs.filter((q) => !answers[q.id]).map((q) => q.id) : [SESSION_KEY]),
+    ];
     setMissing(miss);
     if (miss.length) {
-      setError(`Please answer all questions (${miss.length} left).`);
+      const qLeft = miss.filter((m) => m !== SESSION_KEY).length;
+      setError(qLeft ? `Please answer all questions (${qLeft} left).` : 'Please choose the learning session you attended.');
       document.getElementById(`q-${miss[0]}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
@@ -102,7 +134,9 @@ export default function QuizPage() {
 
   async function handleSubmit() {
     setLoading(true);
-    const { error: rpcError } = await supabase.rpc('submit_quiz', { p_email: email, p_answers: answers });
+    // Only the Plenary answers + the chosen session's answers are sent
+    const payload = Object.fromEntries(visible.map((q) => [q.id, answers[q.id]]));
+    const { error: rpcError } = await supabase.rpc('submit_quiz', { p_email: email, p_answers: payload });
     setLoading(false);
     setConfirming(false);
 
@@ -126,6 +160,61 @@ export default function QuizPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  function renderQuestion(q, i, prev, number) {
+    const newSession = !prev || prev.session !== q.session;
+    const newSpeaker = newSession || prev.speaker !== q.speaker;
+    const isMissing = missing.includes(q.id);
+    return (
+      <div key={q.id}>
+        {newSession && (
+          <h2 className="px-1 pt-4 text-lg font-bold text-[#1F773A] uppercase tracking-wide">{q.session}</h2>
+        )}
+        {newSpeaker && <p className="px-1 pt-1 pb-2 text-sm font-semibold text-gray-600">{q.speaker}</p>}
+        <div
+          id={`q-${q.id}`}
+          className={`bg-white rounded-xl shadow-sm p-5 border ${isMissing ? 'border-red-400' : 'border-transparent'}`}
+        >
+          <p className="font-medium text-gray-800">
+            <span className="text-gray-400 mr-1">{number}.</span>
+            {q.question}
+          </p>
+          <div className="mt-3 space-y-2">
+            {q.options.map((text, idx) => {
+              const letter = LETTERS[idx];
+              const selected = answers[q.id] === letter;
+              return (
+                <label
+                  key={letter}
+                  className={`flex items-start gap-3 cursor-pointer rounded-lg border px-4 py-2.5 text-sm transition ${
+                    selected ? 'border-[#1F773A] bg-[#EAF3DE]' : 'border-gray-200 hover:border-[#1F773A]'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name={`q-${q.id}`}
+                    checked={selected}
+                    onChange={() => pick(q.id, letter)}
+                    className="sr-only"
+                  />
+                  <span
+                    className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                      selected ? 'text-white' : 'text-gray-600 bg-gray-100'
+                    }`}
+                    style={selected ? { backgroundColor: GREEN } : undefined}
+                  >
+                    {letter}
+                  </span>
+                  <span className="text-gray-700 pt-0.5">{text}</span>
+                </label>
+              );
+            })}
+          </div>
+          {isMissing && <p className="text-xs text-red-600 mt-2">Please answer this question.</p>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <PortalShell
       title="39th PHILSAN Annual Convention Quiz"
@@ -133,7 +222,8 @@ export default function QuizPage() {
       intro={
         step === 'form' && (
           <>
-            Answer questions based on the convention presentations. You can only submit the quiz{' '}
+            Answer all the Plenary questions, then choose the learning session you attended and answer its
+            questions. You can only submit the quiz{' '}
             <span className="font-semibold">once</span>, so review your answers before submitting. Your progress is
             saved on this device until you submit.
           </>
@@ -148,76 +238,68 @@ export default function QuizPage() {
 
       {step === 'form' && (
         <form onSubmit={handleReview} noValidate className="mt-4 space-y-4 pb-24">
-          {questions.map((q, i) => {
-            const prev = questions[i - 1];
-            const newSession = !prev || prev.session !== q.session;
-            const newSpeaker = newSession || prev.speaker !== q.speaker;
-            const isMissing = missing.includes(q.id);
-            return (
-              <div key={q.id}>
-                {newSession && (
-                  <h2 className="px-1 pt-4 text-lg font-bold text-[#1F773A] uppercase tracking-wide">{q.session}</h2>
-                )}
-                {newSpeaker && <p className="px-1 pt-1 pb-2 text-sm font-semibold text-gray-600">{q.speaker}</p>}
-                <div
-                  id={`q-${q.id}`}
-                  className={`bg-white rounded-xl shadow-sm p-5 border ${
-                    isMissing ? 'border-red-400' : 'border-transparent'
-                  }`}
-                >
-                  <p className="font-medium text-gray-800">
-                    <span className="text-gray-400 mr-1">{i + 1}.</span>
-                    {q.question}
-                  </p>
-                  <div className="mt-3 space-y-2">
-                    {q.options.map((text, idx) => {
-                      const letter = LETTERS[idx];
-                      const selected = answers[q.id] === letter;
-                      return (
-                        <label
-                          key={letter}
-                          className={`flex items-start gap-3 cursor-pointer rounded-lg border px-4 py-2.5 text-sm transition ${
-                            selected ? 'border-[#1F773A] bg-[#EAF3DE]' : 'border-gray-200 hover:border-[#1F773A]'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name={`q-${q.id}`}
-                            checked={selected}
-                            onChange={() => pick(q.id, letter)}
-                            className="sr-only"
-                          />
-                          <span
-                            className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                              selected ? 'text-white' : 'text-gray-600 bg-gray-100'
-                            }`}
-                            style={selected ? { backgroundColor: GREEN } : undefined}
-                          >
-                            {letter}
-                          </span>
-                          <span className="text-gray-700 pt-0.5">{text}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  {isMissing && <p className="text-xs text-red-600 mt-2">Please answer this question.</p>}
+          {/* 1) Plenary — everyone */}
+          {plenaryQs.map((q, i) => renderQuestion(q, i, plenaryQs[i - 1], i + 1))}
+
+          {/* 2) Which learning session did you attend? */}
+          {sessionNames.length > 0 && (
+            <div id={`q-${SESSION_KEY}`}>
+              <h2 className="px-1 pt-6 text-lg font-bold text-[#1F773A] uppercase tracking-wide">Learning Session</h2>
+              <div
+                className={`bg-white rounded-xl shadow-sm p-5 border ${
+                  missing.includes(SESSION_KEY) ? 'border-red-400' : 'border-transparent'
+                }`}
+              >
+                <p className="font-medium text-gray-800">Which learning session did you attend?</p>
+                <p className="text-xs text-gray-500 mt-1">Answer the questions for the session you attended only.</p>
+                <div className="mt-3 space-y-2">
+                  {sessionNames.map((name) => {
+                    const selected = chosenSession === name;
+                    return (
+                      <label
+                        key={name}
+                        className={`flex items-center gap-3 cursor-pointer rounded-lg border px-4 py-2.5 text-sm transition ${
+                          selected ? 'border-[#1F773A] bg-[#EAF3DE]' : 'border-gray-200 hover:border-[#1F773A]'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="learning-session"
+                          checked={selected}
+                          onChange={() => chooseSession(name)}
+                          className="sr-only"
+                        />
+                        <span
+                          className={`shrink-0 w-4 h-4 rounded-full border-2 ${selected ? 'border-[#1F773A]' : 'border-gray-300'}`}
+                          style={selected ? { backgroundColor: GREEN } : undefined}
+                        />
+                        <span className="text-gray-700 font-medium">{name}</span>
+                      </label>
+                    );
+                  })}
                 </div>
+                {missing.includes(SESSION_KEY) && (
+                  <p className="text-xs text-red-600 mt-2">Please choose the learning session you attended.</p>
+                )}
               </div>
-            );
-          })}
+            </div>
+          )}
+
+          {/* 3) Only the chosen session's questions */}
+          {sessionQs.map((q, i) => renderQuestion(q, i, sessionQs[i - 1], plenaryQs.length + i + 1))}
 
           {/* Sticky progress + submit */}
           <div className="fixed bottom-0 inset-x-0 bg-white border-t shadow-lg">
             <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-4">
               <div className="flex-1">
                 <p className="text-xs text-gray-600">
-                  {answeredCount} of {questions.length} answered
+                  {answeredCount} of {totalToAnswer} answered
                 </p>
                 <div className="h-2 bg-[#EAF3DE] rounded-full mt-1 overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
-                      width: `${questions.length ? (answeredCount / questions.length) * 100 : 0}%`,
+                      width: `${totalToAnswer ? (answeredCount / totalToAnswer) * 100 : 0}%`,
                       backgroundColor: GREEN,
                     }}
                   />
