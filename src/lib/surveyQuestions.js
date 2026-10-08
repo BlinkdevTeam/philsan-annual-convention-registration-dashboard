@@ -156,13 +156,16 @@ export const SPEAKER_QUESTIONS = [
   ...speaker('ls2_makhanon', 'Learning Session 2: Metta Makhanon', session(2)),
   ...speaker('ls2_reyes', 'Learning Session 2: Rhona Nina Reyes', session(2)),
   ...speaker('ls2_celi', 'Learning Session 2: Pietro Celi', session(2)),
-  ...speaker('ls2_lemmen', 'Learning Session 2: Johannes Jacobus Lemmen', session(2)),
+  ...speaker('ls2_quiazon', 'Learning Session 2: Dr. Karl Marx Quiazon', session(2)),
+  ...speaker('ls2_riley', 'Learning Session 2: Dr. William Riley', session(2)),
 
   // Learning Session 3
   ...speaker('ls3_mariquilla', 'Learning Session 3: Jocelyn Mariquilla', session(3)),
   ...speaker('ls3_nuntawan', 'Learning Session 3: Suparlark Nuntawan Na Ayudhya', session(3)),
   ...speaker('ls3_villacorta', 'Learning Session 3: Concepcion Villacorta', session(3)),
   ...speaker('ls3_jayaraman', 'Learning Session 3: Balachandar Jayaraman', session(3)),
+  // Moved from Session 2. Old Session 2 ratings saved as ls2_lemmen are kept in the database.
+  ...speaker('ls3_lemmen', 'Learning Session 3: Mr. Johannes Jacobus Wilhelmus Lemmen', session(3)),
 ];
 
 // Everything the participant sees on the survey form, in order
