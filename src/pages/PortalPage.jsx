@@ -124,7 +124,8 @@ export default function PortalPage() {
 
   // ---------- Dashboard ----------
   const { quiz_done, survey_done, certificate_token, first_name } = status;
-  const certReady = quiz_done && survey_done;
+  // Certificate needs the survey; CPD units also need the quiz
+  const certReady = survey_done;
   const showLicenseForm = !license?.done || editingLicense;
 
   return (
@@ -174,7 +175,7 @@ export default function PortalPage() {
           description={
             quiz_done
               ? 'Your answers have been recorded.'
-              : 'Questions from the convention talks. You can only submit once.'
+              : 'Questions from the convention talks. Required for a certificate with CPD units. You can only submit once.'
           }
           done={quiz_done}
           buttonLabel={quiz_done ? 'Quiz completed ✓' : 'Take Quiz'}
@@ -200,9 +201,13 @@ export default function PortalPage() {
           step="3"
           title="Certificate"
           description={
-            certReady
-              ? 'Your Certificate of Attendance and Completion is ready.'
-              : 'Unlocks after you complete the quiz and the survey.'
+            !certReady
+              ? quiz_done
+                ? 'Unlocks after you complete the survey. It will include your CPD units.'
+                : 'Unlocks after you complete the survey. Take the quiz too for a certificate with CPD units.'
+              : quiz_done
+                ? 'Your Certificate of Attendance and Completion, with CPD units, is ready.'
+                : 'Your Certificate of Attendance is ready. For a certificate with CPD units, take the quiz first.'
           }
           done={!!certificate_token}
           locked={!certReady}
