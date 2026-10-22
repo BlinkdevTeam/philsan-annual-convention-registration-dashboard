@@ -13,6 +13,7 @@ const NAV = [
     { to: '/survey-results',    label: 'Survey Results',    icon: '📋' },
     { to: '/quiz-results',      label: 'Quiz Results',      icon: '🧠' },
     { to: '/reports',           label: 'Reports',           icon: '📄' },
+    { to: '/portal-emails',     label: 'Portal Emails',     icon: '✉️' },
 ];
 
 export default function AdminLayout({ children }) {
