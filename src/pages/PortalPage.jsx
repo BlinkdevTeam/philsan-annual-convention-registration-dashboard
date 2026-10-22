@@ -4,6 +4,20 @@ import { supabase } from '../lib/supabaseClient';
 import { getPortalEmail, setPortalEmail, clearPortalEmail, callCertificate } from '../lib/portal';
 import PortalShell, { GREEN } from '../components/PortalShell';
 import LicenseForm from '../components/LicenseForm';
+import { PRESENTATIONS } from '../lib/presentations';
+
+// Souvenir program PDF, served from the dashboard's public/ folder
+const SOUVENIR_URL = '/souvenir-program.pdf';
+const SOUVENIR_FILENAME = 'PHILSAN-39th-Annual-Convention-Souvenir-Program.pdf';
+
+function downloadSouvenir() {
+  const a = document.createElement('a');
+  a.href = SOUVENIR_URL;
+  a.download = SOUVENIR_FILENAME;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 
 const NOT_FOUND_MSG =
   "We couldn't find a timed-in attendee with this email. Please use the email you registered with. " +
@@ -18,6 +32,7 @@ export default function PortalPage() {
   const [error, setError] = useState('');
   const [license, setLicense] = useState(null); // result of portal_get_license
   const [editingLicense, setEditingLicense] = useState(false);
+  const [showPresentations, setShowPresentations] = useState(false);
 
   // PRC license step: must be done before Quiz / Survey / Certificate
   async function loadLicense(addr) {
@@ -223,12 +238,62 @@ export default function PortalPage() {
           disabled={!certReady || issuing}
           onClick={getCertificate}
         />
+
+        <ActionCard
+          step="4"
+          title="Souvenir Program"
+          description="The 39th PHILSAN Annual Convention souvenir program (PDF, about 27 MB)."
+          buttonLabel="Download Program"
+          secondary
+          onClick={downloadSouvenir}
+        />
+
+        <ActionCard
+          step="5"
+          title="Speaker Presentations"
+          description="Download the slides from the plenary and learning session talks."
+          buttonLabel={showPresentations ? 'Hide list' : 'View presentations'}
+          secondary
+          onClick={() => setShowPresentations((v) => !v)}
+        />
+        {showPresentations && <PresentationList />}
       </div>
       </>
       )}
 
       {error && <p className="text-sm text-red-600 mt-4 px-1">{error}</p>}
     </PortalShell>
+  );
+}
+
+function PresentationList() {
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-5">
+      {PRESENTATIONS.map((g) => (
+        <div key={g.group} className="mb-5 last:mb-0">
+          <h3 className="text-sm font-bold text-[#1F773A] uppercase tracking-wide mb-2">{g.group}</h3>
+          <ul className="divide-y divide-gray-100 border border-gray-100 rounded-lg">
+            {g.items.map((p) => (
+              <li key={p.file} className="flex items-center gap-3 px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-800">{p.speaker}</p>
+                  <p className="text-xs text-gray-500">
+                    {p.org ? `${p.org} · ` : ''}PDF, {p.sizeMb} MB
+                  </p>
+                </div>
+                <a
+                  href={p.file}
+                  download={`PHILSAN-39th-${p.speaker.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '')}.pdf`}
+                  className="shrink-0 rounded-lg border border-[#1F773A] px-4 py-2 text-sm font-semibold text-[#1F773A] hover:bg-[#EAF3DE]"
+                >
+                  Download
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
   );
 }
 
