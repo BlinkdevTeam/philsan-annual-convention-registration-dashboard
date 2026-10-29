@@ -13,6 +13,7 @@ export default function QuizResults() {
   const [approvedCount, setApprovedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [pdfBusy, setPdfBusy] = useState(false);
   const [tab, setTab] = useState('participants'); // 'participants' | 'questions'
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('score_desc');
@@ -118,6 +119,20 @@ export default function QuizResults() {
     URL.revokeObjectURL(link.href);
   }
 
+  async function exportSummaryPdf() {
+    setPdfBusy(true);
+    setError('');
+    try {
+      const { downloadQuizSummaryPdf } = await import('../reports/resultsSummaryPdf');
+      await downloadQuizSummaryPdf(questions, attempts, approvedCount);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Could not create the summary PDF.');
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   if (loading) return <div className="p-6 text-gray-500">Loading quiz results…</div>;
 
   return (
@@ -140,6 +155,14 @@ export default function QuizResults() {
             style={{ backgroundColor: GREEN }}
           >
             Export CSV
+          </button>
+          <button
+            onClick={exportSummaryPdf}
+            disabled={!total || pdfBusy}
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            style={{ backgroundColor: GREEN }}
+          >
+            {pdfBusy ? 'Creating PDF…' : 'Summary PDF'}
           </button>
         </div>
       </div>

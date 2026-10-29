@@ -682,3 +682,9 @@ export async function buildPrcReportPdf(report, assets, options = {}) {
 
   return doc.save();
 }
+
+// Shared with the Quiz and Survey summary PDFs (resultsSummaryPdf.js) so they look the same
+export {
+  Painter, C, W, H, M, CW, num, pct0, pct1,
+  pageHeader, card, statCard, noData, hBarChart, columnChart, ratingBars, donutCard,
+};

@@ -64,6 +64,9 @@ const countBy = (rows, keyFn) => {
 
 const pct = (n, d) => (d ? (n / d) * 100 : 0);
 
+// is_student is stored as true/false (older rows may say "yes")
+const isStudent = (p) => p.is_student === true || p.is_student === 'yes';
+
 const MEMBERSHIP = [
   ['non_member', 'Non-member'],
   ['regular', 'Regular'],
@@ -264,8 +267,8 @@ export function aggregateReport(raw, { topSponsors = 10, topCompanies = 10 } = {
     registration: { preRegTrend, timeIn, peakSlot, firstDay: dayKeys[0], lastDay: dayKeys[dayKeys.length - 1] },
     profile: {
       age: ordered(attendees, 'age', AGES),
-      students: attendees.filter((p) => p.is_student === 'yes').length,
-      professionals: attendees.filter((p) => p.is_student !== 'yes').length,
+      students: attendees.filter(isStudent).length,
+      professionals: attendees.filter((p) => !isStudent(p)).length,
       souvenir: ordered(attendees, 'souvenir', SOUVENIR),
       certYes: attendees.filter((p) => p.certificate_needed === 'yes').length,
       certNo: attendees.filter((p) => p.certificate_needed !== 'yes').length,
