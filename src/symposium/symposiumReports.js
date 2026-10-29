@@ -1,7 +1,7 @@
 // 2nd Pet Symposium reports (PDF), kept separate from the 39th Convention:
 //   - Symposium Report: registrations, sponsors, profile, survey, quiz, completion
-//   - Quiz Summary:     scores, results by speaker, every question
-//   - Survey Summary:   ratings, speaker evaluation, every written answer
+//   - Quiz and Survey Summary (one PDF): survey ratings, speaker evaluation and every
+//     written answer, then quiz scores, results by speaker and every question
 // Reads only the symposium_* tables. Uses the same drawing pieces, fonts and colors
 // as the convention's PRC report (reports/prcReportPdf.js) so the reports look alike.
 // Note: the symposium used manual (paper) attendance, so there is no attendance data here.
@@ -583,18 +583,14 @@ export async function downloadSymposiumReport(raw) {
   download(await doc.save(), `PHILSAN-Pet-Symposium-Report-${today()}.pdf`);
 }
 
-export async function downloadSymposiumQuizSummary(raw) {
-  const q = quizNumbers(raw);
-  const { doc, p } = await newDoc('Quiz Results Summary');
-  quizOverviewPage(p, q, raw.registrations.length, 'Quiz Results Summary');
-  quizQuestionsPages(p, q);
-  footers(p, doc, 'Quiz Results Summary');
-  download(await doc.save(), `PHILSAN-Pet-Symposium-Quiz-Summary-${today()}.pdf`);
-}
-
-export async function downloadSymposiumSurveySummary(raw) {
+// Quiz and survey in one PDF: survey results first, then quiz results
+export async function downloadSymposiumQuizSurveySummary(raw) {
   const s = surveyNumbers(raw);
-  const { doc, p } = await newDoc('Survey Results Summary');
+  const q = quizNumbers(raw);
+  const title = 'Quiz and Survey Summary';
+  const { doc, p } = await newDoc(title);
+
+  // Survey
   surveyOverviewPage(p, s, raw.registrations.length, 'Survey Results Summary');
   if (s.speakers.length || s.comments.some((g) => g.items.length)) {
     const f = flow(
@@ -609,6 +605,11 @@ export async function downloadSymposiumSurveySummary(raw) {
     }
     comments(p, f, s.comments);
   }
-  footers(p, doc, 'Survey Results Summary');
-  download(await doc.save(), `PHILSAN-Pet-Symposium-Survey-Summary-${today()}.pdf`);
+
+  // Quiz
+  quizOverviewPage(p, q, raw.registrations.length, 'Quiz Results Summary');
+  if (q.questionStats.length) quizQuestionsPages(p, q);
+
+  footers(p, doc, title);
+  download(await doc.save(), `PHILSAN-Pet-Symposium-Quiz-and-Survey-Summary-${today()}.pdf`);
 }

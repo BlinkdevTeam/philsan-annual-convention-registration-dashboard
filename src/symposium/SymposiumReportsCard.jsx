@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 export default function SymposiumReportsCard() {
     const [raw, setRaw] = useState(null);
     const [error, setError] = useState('');
-    const [busy, setBusy] = useState(''); // '' | 'report' | 'quiz' | 'survey'
+    const [busy, setBusy] = useState(''); // '' | 'report' | 'summary'
 
     useEffect(() => {
         (async () => {
@@ -26,8 +26,7 @@ export default function SymposiumReportsCard() {
             const fresh = await m.fetchSymposiumReportData(supabase); // always the latest data
             setRaw(fresh);
             if (kind === 'report') await m.downloadSymposiumReport(fresh);
-            if (kind === 'quiz') await m.downloadSymposiumQuizSummary(fresh);
-            if (kind === 'survey') await m.downloadSymposiumSurveySummary(fresh);
+            if (kind === 'summary') await m.downloadSymposiumQuizSurveySummary(fresh);
         } catch (err) {
             console.error(err);
             setError(err.message || 'Could not create the PDF.');
@@ -52,15 +51,15 @@ export default function SymposiumReportsCard() {
                 <h2 className="text-[15px] font-semibold text-[#1d1b16]">Reports (PDF)</h2>
                 <div className="flex flex-wrap gap-2">
                     {btn('report', 'Symposium Report')}
-                    {btn('quiz', 'Quiz Summary', raw && !raw.attempts.length)}
-                    {btn('survey', 'Survey Summary', raw && !raw.survey.length)}
+                    {btn('summary', 'Quiz & Survey Summary', raw && !raw.attempts.length && !raw.survey.length)}
                 </div>
             </div>
             <div className="p-4 space-y-3">
                 <p className="text-[13px] text-[#5f5e5a]">
                     Symposium Report: registrations, sponsors, pre-registration trend, companies, survey results, speaker
-                    ratings, quiz results and completion. Quiz Summary: scores, results by speaker and every question.
-                    Survey Summary: ratings, speaker evaluation and every written answer. Built from live data each time.
+                    ratings, quiz results and completion. Quiz &amp; Survey Summary (one PDF): survey ratings, speaker evaluation
+                    and every written answer, then quiz scores, results by speaker and every question. Built from live
+                    data each time.
                 </p>
                 {error && <p className="px-3 py-2 bg-[#FCEBEB] text-[#A32D2D] text-[13px] rounded-lg">{error}</p>}
                 {!raw && !error && <p className="text-[13px] text-[#5f5e5a]">Loading current numbers…</p>}
