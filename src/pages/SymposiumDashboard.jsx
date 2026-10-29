@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import SymposiumCpdCard from '../symposium/SymposiumCpdCard';
+import SymposiumReportsCard from '../symposium/SymposiumReportsCard';
 
 // 2nd Pet Symposium — monitoring only (no approval).
 // Reads symposium_registrations + symposium_sponsors (admins are `authenticated`).
@@ -382,6 +383,8 @@ export default function SymposiumDashboard() {
             </div>
 
             <SymposiumCpdCard />
+
+            <SymposiumReportsCard />
 
             <Card
                 title={`Registrants (${filtered.length}${filtered.length !== regs.length ? ` of ${regs.length}` : ''})`}
